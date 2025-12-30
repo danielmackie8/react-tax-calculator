@@ -34,7 +34,6 @@ const calculateCorporationTax = (profit) => {
   if (profit <= LOWER_LIMIT) return profit * SMALL_RATE;
   if (profit >= UPPER_LIMIT) return profit * MAIN_RATE;
   
-  // Marginal Relief Calculation
   const ctAtMainRate = profit * MAIN_RATE;
   const marginalRelief = MR_FRACTION * (UPPER_LIMIT - profit);
   return ctAtMainRate - marginalRelief;
@@ -62,10 +61,15 @@ const calculateScenario = (turnover, annualPension, yearlyExpenses, taxYear) => 
   const effectiveTaxRate = turnover > 0 ? totalTax / turnover : 0;
   const ctRate = profit > 0 ? ct / profit : 0;
 
+  // Determine Marginal Rate for Optimisation Calcs
+  let marginalRate = 0.19;
+  if (profit > 50000 && profit < 250000) marginalRate = 0.265;
+  if (profit >= 250000) marginalRate = 0.25;
+
   return {
     turnover, pension: annualPension, employerNI, yearlyExpenses, profit, ct, afterCt,
     basicDiv, basicTax, higherDiv, higherTax, totalDivTax, netDiv, annualNet, monthlyNet,
-    totalValue, totalTax, effectiveTaxRate, ctRate, BASIC_DIV, HIGHER_DIV
+    totalValue, totalTax, effectiveTaxRate, ctRate, marginalRate, BASIC_DIV, HIGHER_DIV
   };
 };
 
@@ -146,12 +150,92 @@ export default function App() {
 
   const custom = scenarios.custom;
   
-  // Determine Corp Tax Label
   const getCTLabel = (profit, rate) => {
      if (profit <= 50000) return `Corporation Tax @ ${(rate*100).toFixed(1)}%`;
      if (profit >= 250000) return `Corporation Tax @ 25%`;
      return `Corporation Tax (Marginal Relief) @ ${(rate*100).toFixed(2)}%`;
   };
+
+  // --- OPTIMISATION STRATEGIES ---
+  const strategies = useMemo(() => {
+    const marginalRate = custom.marginalRate; 
+    
+    // 1. Optimise Profit to £50k (Reduce Tax Band)
+    const currentProfit = custom.profit;
+    const excessProfit = Math.max(0, currentProfit - 50000);
+    const pensionNeeded = excessProfit;
+    const pensionTaxSave = pensionNeeded * marginalRate;
+    
+    // 2. EV
+    const evCost = 7200; // £600/mo
+    const evTotalBenefit = (evCost * marginalRate) + (evCost * 0.3375);
+
+    // 3. Trivial Benefits
+    const trivBen = 300;
+    const trivSave = (trivBen * marginalRate) + (trivBen * 0.3375);
+
+    // 4. Use of Home (Rent a Room)
+    const flatRate = 312;
+    const flatRateSave = flatRate * marginalRate;
+    const rentVal = 2400;
+    const rentTotalSave = rentVal * marginalRate;
+    const rentExtraSave = rentTotalSave - flatRateSave; 
+
+    // 5. Annual Party
+    const partyCost = 300; // £150 x 2
+    const partySave = (partyCost * marginalRate) + (partyCost * 0.3375);
+
+    return [
+      {
+        id: 'pension',
+        title: 'Optimise for 19% Tax Rate',
+        icon: '📉',
+        desc: currentProfit <= 50000 
+          ? 'Great job! Your profit is already at or below £50,000, ensuring you pay the lowest Corporation Tax rate (19%).'
+          : `Contribute an extra £${(pensionNeeded/1000).toFixed(1)}k to pension to bring profit down to £50k. This avoids the 26.5% marginal tax trap on that excess.`,
+        value: pensionTaxSave,
+        subtext: `Corp Tax Saved`,
+        canApply: currentProfit > 50000,
+        applyValue: pensionNeeded + custom.pension // The new TOTAL pension amount
+      },
+      {
+        id: 'ev',
+        title: 'Company Electric Car',
+        icon: '🚗',
+        desc: 'Lease an EV (~£600/mo). 100% Corp Tax write-off + negligible BiK.',
+        value: evTotalBenefit,
+        subtext: 'Total Tax Efficiency / yr',
+        canApply: false
+      },
+      {
+        id: 'trivial',
+        title: 'Trivial Benefits',
+        icon: '🎁',
+        desc: 'Utilise your £300 annual director exemption for gift cards (Amazon, etc).',
+        value: trivSave,
+        subtext: 'Tax-free Extraction',
+        canApply: false
+      },
+      {
+        id: 'wfh',
+        title: 'Formal Home Rent',
+        icon: '🏠',
+        desc: `Switch from £6/wk flat rate (saves £${Math.round(flatRateSave)}/yr) to a formal rental agreement.`,
+        value: rentExtraSave,
+        subtext: 'Extra Corp Tax saved',
+        canApply: false
+      },
+      {
+        id: 'party',
+        title: 'Annual Party (+1 Guest)',
+        icon: '🥂',
+        desc: '£150/head allowance. Treat yourself and a partner to a Christmas/Summer event.',
+        value: partySave,
+        subtext: 'Tax-free value extracted',
+        canApply: false
+      }
+    ];
+  }, [custom]);
 
   return (
     <>
@@ -243,7 +327,7 @@ export default function App() {
         }
 
         /* TABS */
-        .tabs-nav { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 24px; gap: 24px; }
+        .tabs-nav { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 24px; gap: 24px; flex-wrap: wrap; }
         .tab-btn {
           background: none;
           border: none;
@@ -280,6 +364,19 @@ export default function App() {
         .stat-card.primary { background: var(--primary); border-color: var(--primary); }
         .stat-card.primary .stat-label { color: rgba(255,255,255,0.8); }
         .stat-card.primary .stat-value { color: white; }
+
+        /* OPTIMISATION CARDS */
+        .opt-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-top: 20px; }
+        .opt-card { background: white; border: 1px solid var(--border); border-radius: 10px; padding: 20px; transition: transform 0.2s; display: flex; flex-direction: column; justify-content: space-between; }
+        .opt-card:hover { transform: translateY(-2px); border-color: var(--primary); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .opt-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+        .opt-icon { font-size: 1.5rem; background: #f1f5f9; padding: 8px; border-radius: 8px; }
+        .opt-title { font-weight: 700; color: var(--text-main); font-size: 1rem; }
+        .opt-value { font-family: 'SF Mono', monospace; color: var(--accent-success); font-weight: 700; font-size: 1.1rem; }
+        .opt-desc { font-size: 0.85rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 12px; }
+        .opt-sub { font-size: 0.75rem; color: var(--primary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
+        .opt-btn { width: 100%; padding: 10px; margin-top: 15px; background: #f8fafc; border: 1px solid var(--border); color: var(--text-main); font-size: 0.85rem; font-weight: 600; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
+        .opt-btn:hover { background: var(--primary); color: white; border-color: var(--primary); }
 
         /* INSIGHT BOX */
         .insight-card {
@@ -374,21 +471,33 @@ export default function App() {
         {/* RESULTS AREA */}
         <div className="card">
           <div className="tabs-nav">
-            {['comparison', 'breakdown', 'pension'].map(tab => (
-              <button 
-                key={tab} 
-                className={`tab-btn ${activeTab === tab ? 'active' : ''}`}
-                onClick={() => setActiveTab(tab)}
-              >
-                {tab === 'breakdown' ? 'Detailed Breakdown' : tab.charAt(0).toUpperCase() + tab.slice(1)}
-              </button>
-            ))}
+            {['comparison', 'breakdown', 'pension', 'optimize'].map(tab => {
+               let label = tab.charAt(0).toUpperCase() + tab.slice(1);
+               if(tab === 'breakdown') label = 'Detailed Breakdown';
+               if(tab === 'pension') label = 'Pension Projection';
+               if(tab === 'optimize') label = 'Optimise Tax';
+               
+               // Style object to push the optimise button to the right
+               const isOptimize = tab === 'optimize';
+               const style = isOptimize ? { marginLeft: 'auto', color: '#10b981' } : {};
+               
+               return (
+                <button 
+                  key={tab} 
+                  className={`tab-btn ${activeTab === tab ? 'active' : ''}`}
+                  onClick={() => setActiveTab(tab)}
+                  style={style}
+                >
+                  {label}
+                </button>
+              );
+            })}
           </div>
 
           {/* TAB: COMPARISON */}
           {activeTab === 'comparison' && (
             <div className="tab-pane">
-              {/* --- NEW SUMMARY DASHBOARD --- */}
+              {/* --- DASHBOARD --- */}
               <div className="stat-grid">
                 <div className="stat-card primary">
                   <div className="stat-label">Net Annual</div>
@@ -444,13 +553,51 @@ export default function App() {
                   </tr>
                 </tbody>
               </table>
-              <div className="insight-card">
-                <span className="insight-icon">💡</span>
-                <div>
-                  <strong>Efficiency Tip:</strong> Increasing employer pension contributions is the most effective way to reduce Corporation Tax while retaining wealth in your name.
-                </div>
-              </div>
             </div>
+          )}
+
+          {/* TAB: OPTIMISE (NEW) */}
+          {activeTab === 'optimize' && (
+             <div className="tab-pane">
+                 <div className="section-header">
+                   Efficiency Opportunities
+                   <span style={{float:'right', color: '#64748b', fontWeight:'normal'}}>Based on Marginal Rate: {(custom.marginalRate*100).toFixed(1)}%</span>
+                 </div>
+                 <div className="opt-grid">
+                    {strategies.map(s => (
+                       <div key={s.id} className="opt-card">
+                          <div>
+                            <div className="opt-header">
+                               <div>
+                                  <div className="opt-title">{s.title}</div>
+                                  <div className="opt-desc" style={{marginTop:'4px', marginBottom:0}}>{s.desc}</div>
+                               </div>
+                               <div className="opt-icon">{s.icon}</div>
+                            </div>
+                            <div style={{borderTop:'1px solid #f1f5f9', paddingTop:'12px', marginTop:'12px'}}>
+                               <div className="opt-sub">{s.subtext}</div>
+                               <div className="opt-value">+{formatCurrency(s.value)}</div>
+                            </div>
+                          </div>
+                          {s.canApply && (
+                             <button className="opt-btn" onClick={() => {
+                                if(isDayRate) setMonthlyPension(Math.round(s.applyValue/12)); 
+                                else setAnnualPension(Math.round(s.applyValue));
+                                setActiveTab('comparison');
+                             }}>
+                                Apply to Calculator
+                             </button>
+                          )}
+                       </div>
+                    ))}
+                 </div>
+                 <div className="insight-card" style={{marginTop:'30px'}}>
+                   <span className="insight-icon">ℹ️</span>
+                   <div>
+                      <strong>How this works:</strong> These figures are calculated dynamically based on your specific profit band. The "value" shown is the total tax saved (Corporation + Personal) compared to taking the money as dividends.
+                   </div>
+                </div>
+             </div>
           )}
 
           {/* TAB: BREAKDOWN */}
