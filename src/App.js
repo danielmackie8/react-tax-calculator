@@ -325,7 +325,7 @@ export default function App() {
         <div className="controls-bar">
           <div className="segmented-control">
             <button className={`segment-btn ${incomeMode === 'dayRate' ? 'active' : ''}`} onClick={() => setIncomeMode('dayRate')}>Day Rate</button>
-            <button className={`segment-btn ${incomeMode === 'annualTurnover' ? 'active' : ''}`} onClick={() => setIncomeMode('annualTurnover')}>Turnover</button>
+            <button className={`segment-btn ${incomeMode === 'annualTurnover' ? 'active' : ''}`} onClick={() => setIncomeMode('annualTurnover')}>Annual Turnover</button>
           </div>
           <div className="segmented-control">
             <button className={`segment-btn ${taxYear === '2025' ? 'active' : ''}`} onClick={() => setTaxYear('2025')}>2025/26</button>
