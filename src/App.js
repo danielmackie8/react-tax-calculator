@@ -75,6 +75,7 @@ const calculateScenario = (turnover, annualPension, yearlyExpenses, taxYear) => 
 
 export default function App() {
   // --- STATE ---
+  const [theme, setTheme] = useState('light'); // 'light' | 'dark'
   const [incomeMode, setIncomeMode] = useState('dayRate'); 
   const [taxYear, setTaxYear] = useState('2025');
   const [activeTab, setActiveTab] = useState('comparison');
@@ -91,6 +92,15 @@ export default function App() {
   const [pensionStartBalance, setPensionStartBalance] = useState('');
   const [currentAge, setCurrentAge] = useState('');
   const [pensionGrowth, setPensionGrowth] = useState('');
+
+  // --- THEME EFFECT ---
+  useEffect(() => {
+    document.body.setAttribute('data-theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  };
 
   // --- COMPUTED ---
   const isDayRate = incomeMode === 'dayRate';
@@ -196,7 +206,7 @@ export default function App() {
         value: pensionTaxSave,
         subtext: `Corp Tax Saved`,
         canApply: currentProfit > 50000,
-        applyValue: pensionNeeded + custom.pension // The new TOTAL pension amount
+        applyValue: pensionNeeded + custom.pension 
       },
       {
         id: 'ev',
@@ -241,6 +251,7 @@ export default function App() {
     <>
       <style>{`
         :root {
+          /* LIGHT THEME (Default) */
           --bg-app: #f8fafc;
           --bg-card: #ffffff;
           --primary: #4f46e5;
@@ -251,6 +262,44 @@ export default function App() {
           --text-muted: #64748b;
           --border: #e2e8f0;
           --border-focus: #4f46e5;
+          --header-text: #0f172a;
+          
+          /* TOGGLE VARIABLES */
+          --toggle-track: #e2e8f0;
+          --toggle-knob: #ffffff;
+          --toggle-icon-on: #fbbf24;  /* Sun color */
+          --toggle-icon-off: #94a3b8; /* Moon color inactive */
+          
+          --insight-bg: #f0fdf4;
+          --insight-border: #bbf7d0;
+          --insight-text: #166534;
+          --section-header-bg: #f1f5f9;
+        }
+
+        [data-theme='dark'] {
+          /* DARK THEME */
+          --bg-app: #0f172a;
+          --bg-card: #1e293b;
+          --primary: #6366f1;
+          --primary-hover: #818cf8;
+          --accent-success: #34d399;
+          --accent-warning: #fbbf24;
+          --text-main: #f1f5f9;
+          --text-muted: #94a3b8;
+          --border: #334155;
+          --border-focus: #6366f1;
+          --header-text: #f8fafc;
+          
+          /* TOGGLE VARIABLES */
+          --toggle-track: #334155;
+          --toggle-knob: #475569;
+          --toggle-icon-on: #94a3b8; /* Sun color inactive */
+          --toggle-icon-off: #f1f5f9; /* Moon color active */
+          
+          --insight-bg: #064e3b;
+          --insight-border: #059669;
+          --insight-text: #d1fae5;
+          --section-header-bg: #334155;
         }
 
         * { box-sizing: border-box; }
@@ -260,6 +309,7 @@ export default function App() {
           background-color: var(--bg-app);
           color: var(--text-main);
           -webkit-font-smoothing: antialiased;
+          transition: background-color 0.3s ease, color 0.3s ease;
         }
 
         .app-container {
@@ -268,10 +318,56 @@ export default function App() {
           padding: 0 20px;
         }
 
-        /* HEADER */
-        header { margin-bottom: 24px; }
-        h1 { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.02em; margin: 0; color: var(--text-main); }
+        /* HEADER & MINIMALIST TOGGLE */
+        header { margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }
+        h1 { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.02em; margin: 0; color: var(--header-text); }
         
+        .toggle-switch {
+          position: relative;
+          width: 56px;
+          height: 30px;
+          background-color: var(--toggle-track);
+          border-radius: 999px;
+          cursor: pointer;
+          transition: background-color 0.3s ease;
+          display: flex;
+          align-items: center;
+          padding: 3px;
+          box-shadow: inset 0 2px 4px rgba(0,0,0,0.06);
+        }
+
+        .toggle-knob {
+          width: 24px;
+          height: 24px;
+          background-color: var(--toggle-knob);
+          border-radius: 50%;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          transform: translateX(0);
+          transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        [data-theme='dark'] .toggle-knob {
+          transform: translateX(26px);
+        }
+        
+        /* Icons inside the track (optional background icons) or knob */
+        .toggle-icon {
+          width: 14px;
+          height: 14px;
+          transition: color 0.3s;
+        }
+        
+        /* Sun Icon Logic */
+        .icon-sun { color: var(--accent-warning); display: block; }
+        [data-theme='dark'] .icon-sun { display: none; }
+        
+        /* Moon Icon Logic */
+        .icon-moon { color: #f1f5f9; display: none; }
+        [data-theme='dark'] .icon-moon { display: block; }
+
         /* CARDS */
         .card {
           background: var(--bg-card);
@@ -280,9 +376,10 @@ export default function App() {
           box-shadow: 0 1px 3px rgba(0,0,0,0.05);
           padding: 20px;
           margin-bottom: 20px;
+          transition: background 0.3s, border-color 0.3s;
         }
 
-        /* INPUTS & CONTROLS */
+        /* INPUTS */
         .controls-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; } 
         
         .input-group { display: flex; flex-direction: column; }
@@ -294,7 +391,8 @@ export default function App() {
           border: 1px solid var(--border);
           border-radius: 6px;
           color: var(--text-main);
-          transition: border-color 0.2s, box-shadow 0.2s;
+          background: var(--bg-card);
+          transition: all 0.2s;
         }
         .input-group input:focus { outline: none; border-color: var(--border-focus); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); }
         .input-group small { font-size: 0.7rem; color: var(--text-muted); margin-top: 4px; }
@@ -302,7 +400,7 @@ export default function App() {
         /* SEGMENTED CONTROL */
         .segmented-control {
           display: inline-flex;
-          background: #f1f5f9;
+          background: var(--toggle-track);
           padding: 3px;
           border-radius: 8px;
           margin-right: 16px;
@@ -320,7 +418,7 @@ export default function App() {
           transition: all 0.2s;
         }
         .segment-btn.active {
-          background: white;
+          background: var(--bg-card);
           color: var(--primary);
           box-shadow: 0 1px 2px rgba(0,0,0,0.05);
           font-weight: 600;
@@ -350,15 +448,16 @@ export default function App() {
         .modern-table td { padding: 12px 16px; border-bottom: 1px solid var(--border); color: var(--text-main); }
         .modern-table tr:last-child td { border-bottom: none; }
         .modern-table .mono { font-family: 'SF Mono', 'Roboto Mono', monospace; letter-spacing: -0.02em; }
-        .modern-table .highlight-row { background-color: #f8fafc; font-weight: 600; }
+        .modern-table .highlight-row { background-color: var(--section-header-bg); font-weight: 600; }
         .modern-table .accent { color: var(--primary); font-weight: 600; }
         .modern-table .gold-row { background-color: #fffbeb; }
-        .modern-table .gold-row td { color: #b45309; font-weight: 600; }
-        .modern-table .info-row { color: #94a3b8; font-style: italic; font-size: 0.85rem; }
+        [data-theme='dark'] .modern-table .gold-row { background-color: #78350f; color: white !important; }
+        [data-theme='dark'] .modern-table .gold-row td { color: #fef3c7; }
+        .modern-table .info-row { color: var(--text-muted); font-style: italic; font-size: 0.85rem; }
 
         /* DASHBOARD STATS */
         .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
-        .stat-card { background: #f8fafc; padding: 16px; border-radius: 10px; border: 1px solid var(--border); }
+        .stat-card { background: var(--section-header-bg); padding: 16px; border-radius: 10px; border: 1px solid var(--border); }
         .stat-label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
         .stat-value { font-size: 1.4rem; font-weight: 700; color: var(--text-main); font-family: 'SF Mono', monospace; letter-spacing: -0.03em; }
         .stat-card.primary { background: var(--primary); border-color: var(--primary); }
@@ -367,24 +466,24 @@ export default function App() {
 
         /* OPTIMISATION CARDS */
         .opt-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-top: 20px; }
-        .opt-card { background: white; border: 1px solid var(--border); border-radius: 10px; padding: 20px; transition: transform 0.2s; display: flex; flex-direction: column; justify-content: space-between; }
-        .opt-card:hover { transform: translateY(-2px); border-color: var(--primary); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .opt-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 20px; transition: transform 0.2s; display: flex; flex-direction: column; justify-content: space-between; }
+        .opt-card:hover { transform: translateY(-2px); border-color: var(--primary); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
         .opt-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
-        .opt-icon { font-size: 1.5rem; background: #f1f5f9; padding: 8px; border-radius: 8px; }
+        .opt-icon { font-size: 1.5rem; background: var(--section-header-bg); padding: 8px; border-radius: 8px; }
         .opt-title { font-weight: 700; color: var(--text-main); font-size: 1rem; }
         .opt-value { font-family: 'SF Mono', monospace; color: var(--accent-success); font-weight: 700; font-size: 1.1rem; }
         .opt-desc { font-size: 0.85rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 12px; }
         .opt-sub { font-size: 0.75rem; color: var(--primary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
-        .opt-btn { width: 100%; padding: 10px; margin-top: 15px; background: #f8fafc; border: 1px solid var(--border); color: var(--text-main); font-size: 0.85rem; font-weight: 600; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
+        .opt-btn { width: 100%; padding: 10px; margin-top: 15px; background: var(--section-header-bg); border: 1px solid var(--border); color: var(--text-main); font-size: 0.85rem; font-weight: 600; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
         .opt-btn:hover { background: var(--primary); color: white; border-color: var(--primary); }
 
         /* INSIGHT BOX */
         .insight-card {
-          background: #f0fdf4;
-          border: 1px solid #bbf7d0;
+          background: var(--insight-bg);
+          border: 1px solid var(--insight-border);
           border-radius: 8px;
           padding: 12px 16px;
-          color: #166534;
+          color: var(--insight-text);
           font-size: 0.85rem;
           margin-top: 20px;
           display: flex;
@@ -394,7 +493,7 @@ export default function App() {
 
         /* SECTION HEADER */
         .section-header { 
-          background: #f1f5f9; 
+          background: var(--section-header-bg); 
           padding: 10px 14px; 
           border-radius: 6px; 
           font-size: 0.75rem; 
@@ -416,6 +515,26 @@ export default function App() {
       <div className="app-container">
         <header>
           <h1>Contractor Tax Calculator</h1>
+          {/* MINIMALIST FINTECH TOGGLE */}
+          <div className="toggle-switch" onClick={toggleTheme} title="Toggle Theme">
+             <div className="toggle-knob">
+                {/* SVG ICONS INSIDE KNOB */}
+                <svg className="toggle-icon icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                   <circle cx="12" cy="12" r="5"></circle>
+                   <line x1="12" y1="1" x2="12" y2="3"></line>
+                   <line x1="12" y1="21" x2="12" y2="23"></line>
+                   <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                   <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                   <line x1="1" y1="12" x2="3" y2="12"></line>
+                   <line x1="21" y1="12" x2="23" y2="12"></line>
+                   <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                   <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                </svg>
+                <svg className="toggle-icon icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                   <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                </svg>
+             </div>
+          </div>
         </header>
 
         {/* CONTROLS BAR */}
@@ -479,7 +598,7 @@ export default function App() {
                
                // Style object to push the optimise button to the right
                const isOptimize = tab === 'optimize';
-               const style = isOptimize ? { marginLeft: 'auto', color: '#10b981' } : {};
+               const style = isOptimize ? { marginLeft: 'auto', color: 'var(--accent-success)' } : {};
                
                return (
                 <button 
@@ -561,7 +680,7 @@ export default function App() {
              <div className="tab-pane">
                  <div className="section-header">
                    Efficiency Opportunities
-                   <span style={{float:'right', color: '#64748b', fontWeight:'normal'}}>Based on Marginal Rate: {(custom.marginalRate*100).toFixed(1)}%</span>
+                   <span style={{float:'right', color: 'var(--text-muted)', fontWeight:'normal'}}>Based on Marginal Rate: {(custom.marginalRate*100).toFixed(1)}%</span>
                  </div>
                  <div className="opt-grid">
                     {strategies.map(s => (
@@ -574,7 +693,7 @@ export default function App() {
                                </div>
                                <div className="opt-icon">{s.icon}</div>
                             </div>
-                            <div style={{borderTop:'1px solid #f1f5f9', paddingTop:'12px', marginTop:'12px'}}>
+                            <div style={{borderTop:'1px solid var(--border)', paddingTop:'12px', marginTop:'12px'}}>
                                <div className="opt-sub">{s.subtext}</div>
                                <div className="opt-value">+{formatCurrency(s.value)}</div>
                             </div>
