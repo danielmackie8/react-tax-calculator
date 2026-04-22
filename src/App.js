@@ -4,47 +4,33 @@ import React, { useState, useMemo, useEffect } from 'react';
 const SALARY = 12570;
 const BASIC_RATE = 50270;
 const DIV_ALLOWANCE = 500;
-const TOTAL_DAYS = 253; // 261 working days - 8 bank holidays
+const TOTAL_DAYS = 253;
 const EMPLOYER_NI_THRESHOLD = 5000;
 const EMPLOYER_NI_RATE = 0.15;
 
-// --- CALCULATION LOGIC ---
+// --- HELPERS ---
 const getDividendRates = (taxYear) =>
   taxYear === '2026' ? { basic: 0.1075, higher: 0.3575 } : { basic: 0.0875, higher: 0.3375 };
 
-const formatCurrency = (v) =>
-  isFinite(v) ? '£' + Math.round(v).toLocaleString('en-GB') : '–';
+const fmt = (v) => isFinite(v) ? '£' + Math.round(v).toLocaleString('en-GB') : '–';
+const fmtPct = (v) => isFinite(v) ? (v * 100).toFixed(1) + '%' : '–';
 
-const formatPercentage = (v) =>
-  isFinite(v) ? (v * 100).toFixed(1) + '%' : '–';
+const calcEmployerNI = (salary) =>
+  salary <= EMPLOYER_NI_THRESHOLD ? 0 : (salary - EMPLOYER_NI_THRESHOLD) * EMPLOYER_NI_RATE;
 
-const calculateEmployerNI = (salary) => {
-  if (salary <= EMPLOYER_NI_THRESHOLD) return 0;
-  return (salary - EMPLOYER_NI_THRESHOLD) * EMPLOYER_NI_RATE;
-};
-
-const calculateCorporationTax = (profit) => {
+const calcCorpTax = (profit) => {
   if (profit <= 0) return 0;
-  const LOWER_LIMIT = 50000;
-  const UPPER_LIMIT = 250000;
-  const SMALL_RATE = 0.19;
-  const MAIN_RATE = 0.25;
-  const MR_FRACTION = 3 / 200;
-
-  if (profit <= LOWER_LIMIT) return profit * SMALL_RATE;
-  if (profit >= UPPER_LIMIT) return profit * MAIN_RATE;
-  
-  const ctAtMainRate = profit * MAIN_RATE;
-  const marginalRelief = MR_FRACTION * (UPPER_LIMIT - profit);
-  return ctAtMainRate - marginalRelief;
+  const LOWER = 50000, UPPER = 250000, SMALL = 0.19, MAIN = 0.25, MR = 3 / 200;
+  if (profit <= LOWER) return profit * SMALL;
+  if (profit >= UPPER) return profit * MAIN;
+  return profit * MAIN - MR * (UPPER - profit);
 };
 
-const calculateScenario = (turnover, annualPension, yearlyExpenses, taxYear) => {
-  const employerNI = calculateEmployerNI(SALARY);
+const calcScenario = (turnover, annualPension, yearlyExpenses, taxYear) => {
+  const employerNI = calcEmployerNI(SALARY);
   const profit = turnover - SALARY - employerNI - annualPension - yearlyExpenses;
-  const ct = profit > 0 ? calculateCorporationTax(profit) : 0;
+  const ct = profit > 0 ? calcCorpTax(profit) : 0;
   const afterCt = profit - ct;
-
   const { basic: BASIC_DIV, higher: HIGHER_DIV } = getDividendRates(taxYear);
   const basicDiv = Math.min(afterCt, Math.max(0, BASIC_RATE - SALARY));
   const basicTaxable = Math.max(0, basicDiv - DIV_ALLOWANCE);
@@ -53,19 +39,15 @@ const calculateScenario = (turnover, annualPension, yearlyExpenses, taxYear) => 
   const higherTax = higherDiv * HIGHER_DIV;
   const totalDivTax = basicTax + higherTax;
   const netDiv = afterCt - totalDivTax;
-
   const annualNet = SALARY + netDiv;
   const monthlyNet = annualNet / 12;
   const totalValue = annualNet + annualPension;
   const totalTax = ct + employerNI + totalDivTax;
   const effectiveTaxRate = turnover > 0 ? totalTax / turnover : 0;
   const ctRate = profit > 0 ? ct / profit : 0;
-
-  // Determine Marginal Rate for Optimisation Calcs
   let marginalRate = 0.19;
   if (profit > 50000 && profit < 250000) marginalRate = 0.265;
   if (profit >= 250000) marginalRate = 0.25;
-
   return {
     turnover, pension: annualPension, employerNI, yearlyExpenses, profit, ct, afterCt,
     basicDiv, basicTax, higherDiv, higherTax, totalDivTax, netDiv, annualNet, monthlyNet,
@@ -73,36 +55,288 @@ const calculateScenario = (turnover, annualPension, yearlyExpenses, taxYear) => 
   };
 };
 
+// ─── STYLES ───────────────────────────────────────────────────────────────────
+const CSS = `
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:            #ffffff;
+    --bg-subtle:     #f0ede8;
+    --bg-muted:      #e8e4dd;
+    --text:          #111111;
+    --text-2:        #6b6b6b;
+    --text-3:        #aaaaaa;
+    --border:        #d8d3cb;
+    --border-strong: #c4beb5;
+    --primary:       #111111;
+    --primary-fg:    #ffffff;
+    --success:       #15803d;
+    --danger:        #dc2626;
+    --shadow-sm:     0 1px 2px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.07);
+    --shadow-md:     0 4px 12px rgba(0,0,0,0.10), 0 0 0 1px rgba(0,0,0,0.06);
+    --r-sm: 4px; --r: 6px; --r-md: 8px; --r-lg: 12px;
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'SF Mono', 'Roboto Mono', ui-monospace, monospace;
+  }
+
+  [data-theme='dark'] {
+    --bg:            #0f0f0f;
+    --bg-subtle:     #1c1c1c;
+    --bg-muted:      #262626;
+    --text:          #eeeeee;
+    --text-2:        #888888;
+    --text-3:        #555555;
+    --border:        #2e2e2e;
+    --border-strong: #3a3a3a;
+    --primary:       #eeeeee;
+    --primary-fg:    #111111;
+    --success:       #22c55e;
+    --danger:        #f87171;
+    --shadow-sm:     0 1px 2px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05);
+    --shadow-md:     0 4px 12px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.05);
+  }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background 0.2s, color 0.2s;
+    min-height: 100vh;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .app { max-width: 1100px; margin: 0 auto; padding: 36px 24px 80px; }
+
+  .app-header {
+    display: flex; align-items: flex-start;
+    justify-content: space-between; margin-bottom: 24px;
+  }
+  .app-title {
+    font-size: 1.5rem; font-weight: 700;
+    letter-spacing: -0.03em; color: var(--text); line-height: 1.2;
+  }
+  .app-subtitle { font-size: 0.875rem; color: var(--text-2); margin-top: 3px; }
+
+  .theme-btn {
+    width: 34px; height: 34px; border-radius: var(--r-md);
+    border: 1px solid var(--border-strong); background: var(--bg-subtle);
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 14px; flex-shrink: 0; transition: background 0.15s;
+  }
+  .theme-btn:hover { background: var(--bg-muted); }
+
+  /* ── Split card ── */
+  .split-card {
+    display: grid; grid-template-columns: 272px 1fr;
+    border: 1px solid var(--border-strong); border-radius: var(--r-lg);
+    box-shadow: var(--shadow-sm); overflow: hidden; background: var(--bg);
+  }
+
+  /* ── Left panel ── */
+  .panel-left {
+    background: var(--bg-subtle); border-right: 1px solid var(--border-strong);
+    padding: 24px 18px; display: flex; flex-direction: column;
+  }
+  .panel-title { font-size: 1rem; font-weight: 700; letter-spacing: -0.02em; color: var(--text); margin-bottom: 2px; }
+  .panel-subtitle { font-size: 0.8125rem; color: var(--text-2); margin-bottom: 20px; }
+  .left-divider { height: 1px; background: var(--border-strong); margin: 16px 0; }
+
+  /* ── Seg control ── */
+  .seg {
+    display: flex; background: var(--bg-muted); border: 1px solid var(--border-strong);
+    border-radius: var(--r-md); padding: 3px; gap: 2px; margin-bottom: 16px;
+  }
+  .seg-btn {
+    flex: 1; background: transparent; border: none; padding: 6px 10px;
+    font-family: var(--font); font-size: 0.8125rem; font-weight: 600;
+    color: var(--text-2); border-radius: var(--r-sm); cursor: pointer;
+    transition: background 0.15s, color 0.12s, box-shadow 0.15s;
+    white-space: nowrap; text-align: center;
+  }
+  .seg-btn.active { background: var(--bg); color: var(--text); box-shadow: var(--shadow-sm); }
+
+  /* ── Input stack ── */
+  .input-stack { display: flex; flex-direction: column; gap: 12px; flex: 1; }
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .field-label {
+    font-size: 0.6875rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--text-2);
+  }
+  .field-hint { font-size: 0.6875rem; color: var(--text-3); margin-top: 2px; }
+  .input-wrap {
+    display: flex; align-items: center; border: 1px solid var(--border-strong);
+    border-radius: var(--r); background: var(--bg); overflow: hidden;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .input-wrap:focus-within { border-color: var(--text); box-shadow: 0 0 0 3px rgba(0,0,0,0.08); }
+  [data-theme='dark'] .input-wrap:focus-within { box-shadow: 0 0 0 3px rgba(255,255,255,0.08); }
+  .input-affix {
+    padding: 0 10px; font-size: 0.875rem; font-weight: 600; color: var(--text-2);
+    background: var(--bg-muted); height: 36px; display: flex;
+    align-items: center; user-select: none; flex-shrink: 0;
+  }
+  .input-affix.prefix { border-right: 1px solid var(--border-strong); }
+  .input-affix.suffix { border-left: 1px solid var(--border-strong); }
+  .field-input {
+    flex: 1; min-width: 0; border: none; background: transparent;
+    padding: 0 10px; height: 36px; font-family: var(--font);
+    font-size: 0.9375rem; font-weight: 500; color: var(--text); outline: none;
+  }
+  .field-input::placeholder { color: var(--text-3); font-weight: 400; }
+
+  /* ── Right panel ── */
+  .panel-right { padding: 24px; overflow: hidden; min-width: 0; }
+
+  /* ── Tabs ── */
+  .tabs-bar {
+    display: flex; align-items: center; border-bottom: 1px solid var(--border-strong);
+    margin-bottom: 20px; overflow-x: auto;
+  }
+  .tab-btn {
+    background: none; border: none; border-bottom: 2px solid transparent;
+    padding: 10px 16px; font-family: var(--font); font-size: 0.875rem;
+    font-weight: 600; color: var(--text-2); cursor: pointer;
+    white-space: nowrap; margin-bottom: -1px;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--text); border-bottom-color: var(--text); }
+  .tab-btn.optimise { margin-left: auto; color: var(--success); }
+  .tab-btn.optimise.active { border-bottom-color: var(--success); color: var(--success); }
+
+  /* ── Stat grid ── */
+  .stat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 20px; }
+  .stat-card { background: var(--bg-subtle); border: none; border-radius: var(--r-md); padding: 14px 16px; }
+  .stat-card.primary { background: var(--primary); border-color: var(--primary); }
+  .stat-label { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-2); margin-bottom: 4px; }
+  .stat-card.primary .stat-label { color: rgba(255,255,255,0.55); }
+  [data-theme='dark'] .stat-card.primary .stat-label { color: rgba(0,0,0,0.45); }
+  .stat-value { font-size: 1.625rem; font-weight: 700; color: var(--text); letter-spacing: -0.04em; font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .stat-card.primary .stat-value { color: var(--primary-fg); }
+
+  /* ── Table ── */
+  .data-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+  .data-table thead th {
+    text-align: left; padding: 8px 12px; font-size: 0.6875rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-2);
+    border-bottom: 1px solid var(--border-strong); background: var(--bg-subtle); white-space: nowrap;
+  }
+  .data-table thead th:not(:first-child) { text-align: right; }
+  .data-table tbody td { padding: 11px 12px; border-bottom: 1px solid var(--border); color: var(--text); font-variant-numeric: tabular-nums; }
+  .data-table tbody tr:last-child td { border-bottom: none; }
+  .data-table tbody td:not(:first-child) { text-align: right; }
+  .data-table .mono { font-family: var(--mono); letter-spacing: -0.01em; }
+  .data-table .accent { font-weight: 700; }
+  .data-table .row-highlight { background: var(--bg-muted); }
+  .data-table .row-highlight td { font-weight: 700; border-color: var(--border-strong); }
+  .data-table .row-gold { background: #fffbeb; }
+  [data-theme='dark'] .data-table .row-gold { background: #3d2700; }
+  .data-table .row-gold td { color: #92400e; }
+  [data-theme='dark'] .data-table .row-gold td { color: #fde68a; }
+
+  /* ── Section header ── */
+  .section-header {
+    font-size: 0.6875rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--text-2); padding: 18px 0 8px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .section-header:first-child { padding-top: 0; }
+
+  /* ── Pension inputs ── */
+  .pension-inputs { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
+
+  /* ── Optimise ── */
+  .opt-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin-top: 4px; }
+  .opt-card {
+    border: 1px solid var(--border-strong); border-radius: var(--r-md);
+    padding: 16px; background: var(--bg); display: flex; flex-direction: column;
+    gap: 12px; transition: box-shadow 0.15s;
+  }
+  .opt-card:hover { box-shadow: var(--shadow-md); }
+  .opt-card-top { display: flex; align-items: flex-start; gap: 10px; }
+  .opt-icon { font-size: 1.125rem; flex-shrink: 0; margin-top: 1px; }
+  .opt-title { font-size: 0.875rem; font-weight: 700; color: var(--text); line-height: 1.3; }
+  .opt-desc { font-size: 0.8125rem; color: var(--text-2); margin-top: 4px; line-height: 1.55; }
+  .opt-footer { border-top: 1px solid var(--border); padding-top: 12px; display: flex; align-items: center; justify-content: space-between; }
+  .opt-sub { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3); }
+  .opt-value { font-size: 1.0625rem; font-weight: 700; color: var(--success); font-variant-numeric: tabular-nums; }
+  .opt-apply-btn {
+    font-family: var(--font); font-size: 0.75rem; font-weight: 700;
+    padding: 5px 12px; border-radius: var(--r-sm); border: 1px solid var(--border-strong);
+    background: var(--bg-muted); color: var(--text); cursor: pointer; transition: box-shadow 0.12s;
+  }
+  .opt-apply-btn:hover { box-shadow: var(--shadow-sm); }
+  .insight-box {
+    margin-top: 16px; padding: 14px 16px; border: 1px solid var(--border);
+    border-left: 3px solid var(--border-strong); border-radius: var(--r);
+    background: var(--bg-subtle); font-size: 0.8125rem; color: var(--text-2); line-height: 1.6;
+  }
+
+  /* ── Mobile scenario cards ── */
+  .scenario-cards { display: flex; flex-direction: column; gap: 8px; }
+  .scenario-card { border: 1px solid var(--border); border-radius: var(--r-md); padding: 14px 16px; background: var(--bg); }
+  .scenario-card--active { background: var(--bg-subtle); border-color: var(--border); }
+  .scenario-card__name { font-size: 0.875rem; font-weight: 700; color: var(--text); margin-bottom: 10px; }
+  .scenario-card__row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--border); }
+  .scenario-card__row:last-child { border-bottom: none; }
+  .scenario-card__lbl { font-size: 0.875rem; color: var(--text-2); font-weight: 400; }
+  .scenario-card__monthly { font-size: 1.125rem; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+  .scenario-card__val { font-size: 0.9375rem; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+
+  /* ── Visibility ── */
+  .desktop-only { display: table; }
+  .mobile-only  { display: none; }
+
+  /* ── Tablet ── */
+  @media (max-width: 860px) {
+    .split-card { grid-template-columns: 1fr; }
+    .panel-left { border-right: none; border-bottom: 1px solid var(--border-strong); }
+    .input-stack { flex-direction: row; flex-wrap: wrap; }
+    .input-stack .field { flex: 1 1 160px; }
+  }
+
+  /* ── Mobile ── */
+  @media (max-width: 600px) {
+    .app { padding: 20px 14px 60px; }
+    .app-title { font-size: 1.25rem; }
+    .panel-left, .panel-right { padding: 16px; }
+    .stat-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+    .stat-value { font-size: 1.375rem; }
+    .opt-grid { grid-template-columns: 1fr; }
+    .tabs-bar { overflow-x: auto; justify-content: space-around; }
+    .tab-btn { padding: 9px 8px; font-size: 0.8125rem; flex: 1; text-align: center; justify-content: center; }
+    .tab-btn.optimise { margin-left: 0; flex: 1; }
+    .data-table { font-size: 0.8125rem; }
+    .data-table thead th, .data-table tbody td { padding: 9px 8px; }
+    .input-stack { flex-direction: column; }
+    .input-stack .field { flex: none; }
+    .desktop-only { display: none; }
+    .mobile-only  { display: flex; }
+  }
+`;
+
+// ─── COMPONENT ────────────────────────────────────────────────────────────────
 export default function App() {
-  // --- STATE ---
-  const [theme, setTheme] = useState('light'); // 'light' | 'dark'
-  const [incomeMode, setIncomeMode] = useState('dayRate'); 
-  const [taxYear, setTaxYear] = useState('2025');
+
+  const [incomeMode, setIncomeMode] = useState('dayRate');
+  const [taxYear, setTaxYear] = useState('2026');
   const [activeTab, setActiveTab] = useState('comparison');
 
-  // Inputs
   const [dailyRate, setDailyRate] = useState('');
   const [holidays, setHolidays] = useState('');
   const [monthlyPension, setMonthlyPension] = useState('');
   const [yearlyExpenses, setYearlyExpenses] = useState('');
   const [annualTurnover, setAnnualTurnover] = useState('');
   const [annualPension, setAnnualPension] = useState('');
-
-  // Pension Projection Inputs
   const [pensionStartBalance, setPensionStartBalance] = useState('');
   const [currentAge, setCurrentAge] = useState('');
   const [pensionGrowth, setPensionGrowth] = useState('');
 
-  // --- THEME EFFECT ---
-  useEffect(() => {
-    document.body.setAttribute('data-theme', theme);
-  }, [theme]);
 
-  const toggleTheme = () => {
-    setTheme(prev => prev === 'light' ? 'dark' : 'light');
-  };
 
-  // --- COMPUTED ---
   const isDayRate = incomeMode === 'dayRate';
   const workingDays = isDayRate ? Math.max(0, TOTAL_DAYS - (parseFloat(holidays) || 0)) : 0;
 
@@ -118,21 +352,19 @@ export default function App() {
 
   useEffect(() => {
     if (isDayRate) {
-      if (dailyRate) setAnnualTurnover((parseFloat(dailyRate) || 0) * workingDays);
-      if (monthlyPension) setAnnualPension((parseFloat(monthlyPension) || 0) * 12);
+      if (dailyRate) setAnnualTurnover(String((parseFloat(dailyRate) || 0) * workingDays));
+      if (monthlyPension) setAnnualPension(String((parseFloat(monthlyPension) || 0) * 12));
     } else {
-      if (annualPension) setMonthlyPension(Math.round((parseFloat(annualPension) || 0) / 12));
+      if (annualPension) setMonthlyPension(String(Math.round((parseFloat(annualPension) || 0) / 12)));
     }
   }, [isDayRate, dailyRate, workingDays, monthlyPension, annualPension]);
 
   const scenarios = useMemo(() => {
-    const expenses = parseFloat(yearlyExpenses) || 0;
+    const exp = parseFloat(yearlyExpenses) || 0;
     return {
-      s0: calculateScenario(currentTurnover, 0, expenses, taxYear),
-      s1500: calculateScenario(currentTurnover, 18000, expenses, taxYear),
-      s1750: calculateScenario(currentTurnover, 21000, expenses, taxYear),
-      s2000: calculateScenario(currentTurnover, 24000, expenses, taxYear),
-      custom: calculateScenario(currentTurnover, currentAnnualPension, expenses, taxYear),
+      s0:     calcScenario(currentTurnover, 0,     exp, taxYear),
+      s1000:  calcScenario(currentTurnover, 12000, exp, taxYear),
+      custom: calcScenario(currentTurnover, currentAnnualPension, exp, taxYear),
     };
   }, [currentTurnover, currentAnnualPension, yearlyExpenses, taxYear]);
 
@@ -143,723 +375,395 @@ export default function App() {
     const rate = (parseFloat(pensionGrowth) || 0) / 100;
     const age = parseFloat(currentAge) || 0;
     let hitMillion = false;
-
     for (let year = 1; year <= 25; year++) {
       const start = balance;
       const growth = start * rate;
       balance = start + growth + contrib;
       let isMillionRow = false;
-      if (!hitMillion && balance >= 1000000) {
-        hitMillion = true;
-        isMillionRow = true;
-      }
+      if (!hitMillion && balance >= 1000000) { hitMillion = true; isMillionRow = true; }
       data.push({ year, age: age + year - 1, contrib, start, growth, end: balance, isMillionRow });
     }
     return data;
   }, [pensionStartBalance, currentAnnualPension, pensionGrowth, currentAge]);
 
   const custom = scenarios.custom;
-  
+
   const getCTLabel = (profit, rate) => {
-     if (profit <= 50000) return `Corporation Tax @ ${(rate*100).toFixed(1)}%`;
-     if (profit >= 250000) return `Corporation Tax @ 25%`;
-     return `Corporation Tax (Marginal Relief) @ ${(rate*100).toFixed(2)}%`;
+    if (profit <= 50000) return `Corporation Tax @ ${(rate * 100).toFixed(1)}%`;
+    if (profit >= 250000) return `Corporation Tax @ 25%`;
+    return `Corporation Tax (Marginal Relief) @ ${(rate * 100).toFixed(2)}%`;
   };
 
-  // --- OPTIMISATION STRATEGIES ---
   const strategies = useMemo(() => {
-    const marginalRate = custom.marginalRate; 
-    
-    // 1. Optimise Profit to £50k (Reduce Tax Band)
-    const currentProfit = custom.profit;
-    const excessProfit = Math.max(0, currentProfit - 50000);
-    const pensionNeeded = excessProfit;
-    const pensionTaxSave = pensionNeeded * marginalRate;
-    
-    // 2. EV
-    const evCost = 7200; // £600/mo
-    const evTotalBenefit = (evCost * marginalRate) + (evCost * 0.3375);
-
-    // 3. Trivial Benefits
-    const trivBen = 300;
-    const trivSave = (trivBen * marginalRate) + (trivBen * 0.3375);
-
-    // 4. Use of Home (Rent a Room)
-    const flatRate = 312;
-    const flatRateSave = flatRate * marginalRate;
-    const rentVal = 2400;
-    const rentTotalSave = rentVal * marginalRate;
-    const rentExtraSave = rentTotalSave - flatRateSave; 
-
-    // 5. Annual Party
-    const partyCost = 300; // £150 x 2
-    const partySave = (partyCost * marginalRate) + (partyCost * 0.3375);
-
+    const mr = custom.marginalRate;
+    const excessProfit = Math.max(0, custom.profit - 50000);
+    const evCost = 7200;
     return [
       {
-        id: 'pension',
-        title: 'Optimise for 19% Tax Rate',
-        icon: '📉',
-        desc: currentProfit <= 50000 
-          ? 'Great job! Your profit is already at or below £50,000, ensuring you pay the lowest Corporation Tax rate (19%).'
-          : `Contribute an extra £${(pensionNeeded/1000).toFixed(1)}k to pension to bring profit down to £50k. This avoids the 26.5% marginal tax trap on that excess.`,
-        value: pensionTaxSave,
-        subtext: `Corp Tax Saved`,
-        canApply: currentProfit > 50000,
-        applyValue: pensionNeeded + custom.pension 
+        id: 'pension', title: 'Optimise for 19% Corp Tax', icon: '📉',
+        desc: custom.profit <= 50000
+          ? "Great — your profit is already at or below £50,000, paying the lowest Corp Tax rate (19%)."
+          : `Contribute an extra ${fmt(excessProfit)} to pension to bring profit to £50k and avoid the 26.5% marginal trap.`,
+        value: excessProfit * mr, subtext: 'Corp Tax Saved',
+        canApply: custom.profit > 50000, applyValue: excessProfit + custom.pension
       },
       {
-        id: 'ev',
-        title: 'Company Electric Car',
-        icon: '🚗',
-        desc: 'Lease an EV (~£600/mo). 100% Corp Tax write-off + negligible BiK.',
-        value: evTotalBenefit,
-        subtext: 'Total Tax Efficiency / yr',
-        canApply: false
+        id: 'ev', title: 'Company Electric Car', icon: '🚗',
+        desc: 'Lease an EV (~£600/mo). 100% Corp Tax write-off + negligible BiK = significant tax efficiency.',
+        value: evCost * mr + evCost * 0.3375, subtext: 'Total Tax Efficiency / yr', canApply: false
       },
       {
-        id: 'trivial',
-        title: 'Trivial Benefits',
-        icon: '🎁',
-        desc: 'Utilise your £300 annual director exemption for gift cards (Amazon, etc).',
-        value: trivSave,
-        subtext: 'Tax-free Extraction',
-        canApply: false
+        id: 'trivial', title: 'Trivial Benefits', icon: '🎁',
+        desc: 'Use your £300 annual director exemption for gift cards. Zero tax, zero NI, zero reporting.',
+        value: 300 * mr + 300 * 0.3375, subtext: 'Tax-free Extraction', canApply: false
       },
       {
-        id: 'wfh',
-        title: 'Formal Home Rent',
-        icon: '🏠',
-        desc: `Switch from £6/wk flat rate (saves £${Math.round(flatRateSave)}/yr) to a formal rental agreement.`,
-        value: rentExtraSave,
-        subtext: 'Extra Corp Tax saved',
-        canApply: false
+        id: 'wfh', title: 'Formal Home Rent', icon: '🏠',
+        desc: `Switch from £6/wk flat rate (saves ${fmt(312 * mr)}/yr) to a formal rental agreement for greater deduction.`,
+        value: 2400 * mr - 312 * mr, subtext: 'Extra Corp Tax Saved', canApply: false
       },
       {
-        id: 'party',
-        title: 'Annual Party (+1 Guest)',
-        icon: '🥂',
-        desc: '£150/head allowance. Treat yourself and a partner to a Christmas/Summer event.',
-        value: partySave,
-        subtext: 'Tax-free value extracted',
-        canApply: false
-      }
+        id: 'party', title: 'Annual Party (+1 Guest)', icon: '🥂',
+        desc: '£150/head HMRC allowance — use it for a Christmas or Summer event for you and a partner.',
+        value: 300 * mr + 300 * 0.3375, subtext: 'Tax-free Value', canApply: false
+      },
     ];
   }, [custom]);
 
   return (
     <>
-      <style>{`
-        :root {
-          /* LIGHT THEME (Default) */
-          --bg-app: #f8fafc;
-          --bg-card: #ffffff;
-          --primary: #4f46e5;
-          --primary-hover: #4338ca;
-          --accent-success: #10b981;
-          --accent-warning: #f59e0b;
-          --text-main: #0f172a;
-          --text-muted: #64748b;
-          --border: #e2e8f0;
-          --border-focus: #4f46e5;
-          --header-text: #0f172a;
-          
-          /* TOGGLE VARIABLES */
-          --toggle-track: #e2e8f0;
-          --toggle-knob: #ffffff;
-          --toggle-icon-on: #fbbf24;  /* Sun color */
-          --toggle-icon-off: #94a3b8; /* Moon color inactive */
-          
-          --insight-bg: #f0fdf4;
-          --insight-border: #bbf7d0;
-          --insight-text: #166534;
-          --section-header-bg: #f1f5f9;
-        }
+      <style>{CSS}</style>
+      <div className="app">
 
-        [data-theme='dark'] {
-          /* DARK THEME */
-          --bg-app: #0f172a;
-          --bg-card: #1e293b;
-          --primary: #6366f1;
-          --primary-hover: #818cf8;
-          --accent-success: #34d399;
-          --accent-warning: #fbbf24;
-          --text-main: #f1f5f9;
-          --text-muted: #94a3b8;
-          --border: #334155;
-          --border-focus: #6366f1;
-          --header-text: #f8fafc;
-          
-          /* TOGGLE VARIABLES */
-          --toggle-track: #334155;
-          --toggle-knob: #475569;
-          --toggle-icon-on: #94a3b8; /* Sun color inactive */
-          --toggle-icon-off: #f1f5f9; /* Moon color active */
-          
-          --insight-bg: #064e3b;
-          --insight-border: #059669;
-          --insight-text: #d1fae5;
-          --section-header-bg: #334155;
-        }
-
-        * { box-sizing: border-box; }
-        body { 
-          margin: 0;
-          font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-          background-color: var(--bg-app);
-          color: var(--text-main);
-          -webkit-font-smoothing: antialiased;
-          transition: background-color 0.3s ease, color 0.3s ease;
-        }
-
-        .app-container {
-          max-width: 1100px;
-          margin: 40px auto;
-          padding: 0 20px;
-        }
-
-        /* HEADER & MINIMALIST TOGGLE */
-        header { margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }
-        h1 { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.02em; margin: 0; color: var(--header-text); }
-        
-        .toggle-switch {
-          position: relative;
-          width: 56px;
-          height: 30px;
-          background-color: var(--toggle-track);
-          border-radius: 999px;
-          cursor: pointer;
-          transition: background-color 0.3s ease;
-          display: flex;
-          align-items: center;
-          padding: 3px;
-          box-shadow: inset 0 2px 4px rgba(0,0,0,0.06);
-        }
-
-        .toggle-knob {
-          width: 24px;
-          height: 24px;
-          background-color: var(--toggle-knob);
-          border-radius: 50%;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-          transform: translateX(0);
-          transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        [data-theme='dark'] .toggle-knob {
-          transform: translateX(26px);
-        }
-        
-        /* Icons inside the track (optional background icons) or knob */
-        .toggle-icon {
-          width: 14px;
-          height: 14px;
-          transition: color 0.3s;
-        }
-        
-        /* Sun Icon Logic */
-        .icon-sun { color: var(--accent-warning); display: block; }
-        [data-theme='dark'] .icon-sun { display: none; }
-        
-        /* Moon Icon Logic */
-        .icon-moon { color: #f1f5f9; display: none; }
-        [data-theme='dark'] .icon-moon { display: block; }
-
-        /* CARDS */
-        .card {
-          background: var(--bg-card);
-          border: 1px solid var(--border);
-          border-radius: 12px;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-          padding: 20px;
-          margin-bottom: 20px;
-          transition: background 0.3s, border-color 0.3s;
-        }
-
-        /* INPUTS */
-        .controls-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; } 
-        
-        .input-group { display: flex; flex-direction: column; }
-        .input-group label { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.02em; }
-        .input-group input {
-          font-family: 'Inter', sans-serif;
-          font-size: 0.9rem;
-          padding: 8px 10px;
-          border: 1px solid var(--border);
-          border-radius: 6px;
-          color: var(--text-main);
-          background: var(--bg-card);
-          transition: all 0.2s;
-        }
-        .input-group input:focus { outline: none; border-color: var(--border-focus); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); }
-        .input-group small { font-size: 0.7rem; color: var(--text-muted); margin-top: 4px; }
-
-        /* SEGMENTED CONTROL */
-        .segmented-control {
-          display: inline-flex;
-          background: var(--toggle-track);
-          padding: 3px;
-          border-radius: 8px;
-          margin-right: 16px;
-          margin-bottom: 20px;
-        }
-        .segment-btn {
-          border: none;
-          background: transparent;
-          padding: 6px 14px;
-          font-size: 0.8rem;
-          font-weight: 500;
-          color: var(--text-muted);
-          border-radius: 6px;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-        .segment-btn.active {
-          background: var(--bg-card);
-          color: var(--primary);
-          box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-          font-weight: 600;
-        }
-
-        /* TABS */
-        .tabs-nav { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 24px; gap: 24px; flex-wrap: wrap; }
-        .tab-btn {
-          background: none;
-          border: none;
-          padding: 12px 0;
-          font-size: 0.9rem;
-          font-weight: 500;
-          color: var(--text-muted);
-          cursor: pointer;
-          position: relative;
-        }
-        .tab-btn:hover { color: var(--text-main); }
-        .tab-btn.active { color: var(--primary); font-weight: 600; }
-        .tab-btn.active::after {
-          content: ''; position: absolute; bottom: -1px; left: 0; right: 0; height: 2px; background: var(--primary);
-        }
-
-        /* TABLES */
-        .modern-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-        .modern-table th { text-align: left; padding: 12px 16px; color: var(--text-muted); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; border-bottom: 1px solid var(--border); }
-        .modern-table td { padding: 12px 16px; border-bottom: 1px solid var(--border); color: var(--text-main); }
-        .modern-table tr:last-child td { border-bottom: none; }
-        .modern-table .mono { font-family: 'SF Mono', 'Roboto Mono', monospace; letter-spacing: -0.02em; }
-        .modern-table .highlight-row { background-color: var(--section-header-bg); font-weight: 600; }
-        .modern-table .accent { color: var(--primary); font-weight: 600; }
-        .modern-table .gold-row { background-color: #fffbeb; }
-        [data-theme='dark'] .modern-table .gold-row { background-color: #78350f; color: white !important; }
-        [data-theme='dark'] .modern-table .gold-row td { color: #fef3c7; }
-        .modern-table .info-row { color: var(--text-muted); font-style: italic; font-size: 0.85rem; }
-
-        /* DASHBOARD STATS */
-        .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
-        .stat-card { background: var(--section-header-bg); padding: 16px; border-radius: 10px; border: 1px solid var(--border); }
-        .stat-label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
-        .stat-value { font-size: 1.4rem; font-weight: 700; color: var(--text-main); font-family: 'SF Mono', monospace; letter-spacing: -0.03em; }
-        .stat-card.primary { background: var(--primary); border-color: var(--primary); }
-        .stat-card.primary .stat-label { color: rgba(255,255,255,0.8); }
-        .stat-card.primary .stat-value { color: white; }
-
-        /* OPTIMISATION CARDS */
-        .opt-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-top: 20px; }
-        .opt-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 20px; transition: transform 0.2s; display: flex; flex-direction: column; justify-content: space-between; }
-        .opt-card:hover { transform: translateY(-2px); border-color: var(--primary); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        .opt-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
-        .opt-icon { font-size: 1.5rem; background: var(--section-header-bg); padding: 8px; border-radius: 8px; }
-        .opt-title { font-weight: 700; color: var(--text-main); font-size: 1rem; }
-        .opt-value { font-family: 'SF Mono', monospace; color: var(--accent-success); font-weight: 700; font-size: 1.1rem; }
-        .opt-desc { font-size: 0.85rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 12px; }
-        .opt-sub { font-size: 0.75rem; color: var(--primary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
-        .opt-btn { width: 100%; padding: 10px; margin-top: 15px; background: var(--section-header-bg); border: 1px solid var(--border); color: var(--text-main); font-size: 0.85rem; font-weight: 600; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
-        .opt-btn:hover { background: var(--primary); color: white; border-color: var(--primary); }
-
-        /* INSIGHT BOX */
-        .insight-card {
-          background: var(--insight-bg);
-          border: 1px solid var(--insight-border);
-          border-radius: 8px;
-          padding: 12px 16px;
-          color: var(--insight-text);
-          font-size: 0.85rem;
-          margin-top: 20px;
-          display: flex;
-          align-items: center;
-          gap: 12px;
-        }
-
-        /* SECTION HEADER */
-        .section-header { 
-          background: var(--section-header-bg); 
-          padding: 10px 14px; 
-          border-radius: 6px; 
-          font-size: 0.75rem; 
-          font-weight: 700; 
-          color: var(--text-muted);
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-          margin: 24px 0 12px 0;
-        }
-
-        @media (max-width: 600px) {
-          .controls-grid { grid-template-columns: 1fr; }
-          .segmented-control { display: flex; width: 100%; margin-right: 0; }
-          .segment-btn { flex: 1; text-align: center; }
-          .modern-table th, .modern-table td { padding: 10px 8px; }
-        }
-      `}</style>
-
-      <div className="app-container">
-        <header>
-          <h1>Contractor Tax Calculator</h1>
-          {/* MINIMALIST FINTECH TOGGLE */}
-          <div className="toggle-switch" onClick={toggleTheme} title="Toggle Theme">
-             <div className="toggle-knob">
-                {/* SVG ICONS INSIDE KNOB */}
-                <svg className="toggle-icon icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                   <circle cx="12" cy="12" r="5"></circle>
-                   <line x1="12" y1="1" x2="12" y2="3"></line>
-                   <line x1="12" y1="21" x2="12" y2="23"></line>
-                   <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-                   <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-                   <line x1="1" y1="12" x2="3" y2="12"></line>
-                   <line x1="21" y1="12" x2="23" y2="12"></line>
-                   <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-                   <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-                </svg>
-                <svg className="toggle-icon icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                   <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-                </svg>
-             </div>
-          </div>
+        <header className="app-header">
+          <h1 className="app-title">LTD Tax Calculator</h1>
         </header>
 
-        {/* CONTROLS BAR */}
-        <div className="controls-bar">
-          <div className="segmented-control">
-            <button className={`segment-btn ${incomeMode === 'dayRate' ? 'active' : ''}`} onClick={() => setIncomeMode('dayRate')}>Day Rate</button>
-            <button className={`segment-btn ${incomeMode === 'annualTurnover' ? 'active' : ''}`} onClick={() => setIncomeMode('annualTurnover')}>Annual Turnover</button>
-          </div>
-          <div className="segmented-control">
-            <button className={`segment-btn ${taxYear === '2025' ? 'active' : ''}`} onClick={() => setTaxYear('2025')}>2025/26</button>
-            <button className={`segment-btn ${taxYear === '2026' ? 'active' : ''}`} onClick={() => setTaxYear('2026')}>2026/27</button>
-          </div>
-        </div>
+        <div className="split-card">
 
-        {/* MAIN INPUT CARD */}
-        <div className="card">
-          <div className="controls-grid">
-            {isDayRate ? (
-              <>
-                <div className="input-group">
-                  <label>Daily Rate</label>
-                  <input type="number" value={dailyRate} onChange={(e) => setDailyRate(e.target.value)} placeholder="0" />
-                </div>
-                <div className="input-group">
-                  <label>Personal Holidays</label>
-                  <input type="number" value={holidays} onChange={(e) => setHolidays(e.target.value)} placeholder="0" />
-                  <small>261 - 8BH - {holidays || 0} PTO = {workingDays} Working Days</small>
-                </div>
-                <div className="input-group">
-                  <label>Monthly Pension</label>
-                  <input type="number" value={monthlyPension} onChange={(e) => setMonthlyPension(e.target.value)} placeholder="0" />
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="input-group">
-                  <label>Annual Turnover</label>
-                  <input type="number" value={annualTurnover} onChange={(e) => setAnnualTurnover(e.target.value)} placeholder="0" />
-                </div>
-                <div className="input-group">
-                  <label>Annual Pension</label>
-                  <input type="number" value={annualPension} onChange={(e) => setAnnualPension(e.target.value)} placeholder="0" />
-                </div>
-              </>
-            )}
-            <div className="input-group">
-              <label>Annual Expenses</label>
-              <input type="number" value={yearlyExpenses} onChange={(e) => setYearlyExpenses(e.target.value)} placeholder="0" />
+          {/* ── LEFT ── */}
+          <div className="panel-left">
+            <p className="panel-title">Your details</p>
+            <p className="panel-subtitle">{taxYear === '2025' ? '2025/26' : '2026/27'} tax year</p>
+
+            {/* Tax year toggle — top */}
+            <div className="seg">
+              <button className={`seg-btn${taxYear === '2025' ? ' active' : ''}`} onClick={() => setTaxYear('2025')}>2025/26</button>
+              <button className={`seg-btn${taxYear === '2026' ? ' active' : ''}`} onClick={() => setTaxYear('2026')}>2026/27</button>
             </div>
-          </div>
-        </div>
 
-        {/* RESULTS AREA */}
-        <div className="card">
-          <div className="tabs-nav">
-            {['comparison', 'breakdown', 'pension', 'optimize'].map(tab => {
-               let label = tab.charAt(0).toUpperCase() + tab.slice(1);
-               if(tab === 'breakdown') label = 'Detailed Breakdown';
-               if(tab === 'pension') label = 'Pension Projection';
-               if(tab === 'optimize') label = 'Optimise Tax';
-               
-               // Style object to push the optimise button to the right
-               const isOptimize = tab === 'optimize';
-               const style = isOptimize ? { marginLeft: 'auto', color: 'var(--accent-success)' } : {};
-               
-               return (
-                <button 
-                  key={tab} 
-                  className={`tab-btn ${activeTab === tab ? 'active' : ''}`}
-                  onClick={() => setActiveTab(tab)}
-                  style={style}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
+            {/* Income mode toggle */}
+            <div className="seg">
+              <button className={`seg-btn${incomeMode === 'dayRate' ? ' active' : ''}`} onClick={() => setIncomeMode('dayRate')}>Day Rate</button>
+              <button className={`seg-btn${incomeMode === 'annualTurnover' ? ' active' : ''}`} onClick={() => setIncomeMode('annualTurnover')}>Turnover</button>
+            </div>
 
-          {/* TAB: COMPARISON */}
-          {activeTab === 'comparison' && (
-            <div className="tab-pane">
-              {/* --- DASHBOARD --- */}
-              <div className="stat-grid">
-                <div className="stat-card primary">
-                  <div className="stat-label">Net Annual</div>
-                  <div className="stat-value">{formatCurrency(custom.annualNet)}</div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-label">Net Monthly</div>
-                  <div className="stat-value">{formatCurrency(custom.monthlyNet)}</div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-label">Annual Pension</div>
-                  <div className="stat-value">{formatCurrency(custom.pension)}</div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-label">Effective Tax</div>
-                  <div className="stat-value">{formatPercentage(custom.effectiveTaxRate)}</div>
+            <div className="input-stack">
+              {isDayRate ? (
+                <>
+                  <div className="field">
+                    <label className="field-label">Daily Rate</label>
+                    <div className="input-wrap">
+                      <span className="input-affix prefix">£</span>
+                      <input className="field-input" type="number" value={dailyRate} onChange={e => setDailyRate(e.target.value)} placeholder="600" />
+                    </div>
+                  </div>
+                  <div className="field">
+                    <label className="field-label">Personal Holidays</label>
+                    <div className="input-wrap">
+                      <input className="field-input" type="number" value={holidays} onChange={e => setHolidays(e.target.value)} placeholder="25" style={{ paddingLeft: 14 }} />
+                      <span className="input-affix suffix">days</span>
+                    </div>
+                    <span className="field-hint">261 − 8 BH − {holidays || 0} = {workingDays} working days</span>
+                  </div>
+                  <div className="field">
+                    <label className="field-label">Monthly Pension</label>
+                    <div className="input-wrap">
+                      <span className="input-affix prefix">£</span>
+                      <input className="field-input" type="number" value={monthlyPension} onChange={e => setMonthlyPension(e.target.value)} placeholder="0" />
+                      <span className="input-affix suffix">/mo</span>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="field">
+                    <label className="field-label">Annual Turnover</label>
+                    <div className="input-wrap">
+                      <span className="input-affix prefix">£</span>
+                      <input className="field-input" type="number" value={annualTurnover} onChange={e => setAnnualTurnover(e.target.value)} placeholder="0" />
+                    </div>
+                  </div>
+                  <div className="field">
+                    <label className="field-label">Annual Pension</label>
+                    <div className="input-wrap">
+                      <span className="input-affix prefix">£</span>
+                      <input className="field-input" type="number" value={annualPension} onChange={e => setAnnualPension(e.target.value)} placeholder="0" />
+                    </div>
+                  </div>
+                </>
+              )}
+              <div className="field">
+                <label className="field-label">Annual Expenses</label>
+                <div className="input-wrap">
+                  <span className="input-affix prefix">£</span>
+                  <input className="field-input" type="number" value={yearlyExpenses} onChange={e => setYearlyExpenses(e.target.value)} placeholder="0" />
                 </div>
               </div>
-
-              <table className="modern-table">
-                <thead>
-                  <tr>
-                    <th>Scenario</th>
-                    <th>Pension (Yr)</th>
-                    <th style={{textAlign:'right'}}>Net Monthly</th>
-                    <th style={{textAlign:'right'}}>Net Annual</th>
-                    <th style={{textAlign:'right'}}>Total Value</th>
-                    <th style={{textAlign:'right'}}>Eff. Tax</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[
-                    { label: 'No Pension', data: scenarios.s0 },
-                    { label: '£1.5k / mo', data: scenarios.s1500 },
-                    { label: '£2.0k / mo', data: scenarios.s2000 },
-                  ].map((row, i) => (
-                    <tr key={i}>
-                      <td>{row.label}</td>
-                      <td className="mono">{formatCurrency(row.data.pension)}</td>
-                      <td className="mono accent" style={{textAlign:'right'}}>{formatCurrency(row.data.monthlyNet)}</td>
-                      <td className="mono" style={{textAlign:'right'}}>{formatCurrency(row.data.annualNet)}</td>
-                      <td className="mono" style={{textAlign:'right'}}>{formatCurrency(row.data.totalValue)}</td>
-                      <td className="mono" style={{textAlign:'right'}}>{formatPercentage(row.data.effectiveTaxRate)}</td>
-                    </tr>
-                  ))}
-                  <tr className="highlight-row">
-                    <td>Your Input</td>
-                    <td className="mono">{formatCurrency(currentAnnualPension)}</td>
-                    <td className="mono accent" style={{textAlign:'right'}}>{formatCurrency(custom.monthlyNet)}</td>
-                    <td className="mono" style={{textAlign:'right'}}>{formatCurrency(custom.annualNet)}</td>
-                    <td className="mono" style={{textAlign:'right'}}>{formatCurrency(custom.totalValue)}</td>
-                    <td className="mono" style={{textAlign:'right'}}>{formatPercentage(custom.effectiveTaxRate)}</td>
-                  </tr>
-                </tbody>
-              </table>
             </div>
-          )}
+          </div>
 
-          {/* TAB: OPTIMISE (NEW) */}
-          {activeTab === 'optimize' && (
-             <div className="tab-pane">
-                 <div className="section-header">
-                   Efficiency Opportunities
-                   <span style={{float:'right', color: 'var(--text-muted)', fontWeight:'normal'}}>Based on Marginal Rate: {(custom.marginalRate*100).toFixed(1)}%</span>
-                 </div>
-                 <div className="opt-grid">
-                    {strategies.map(s => (
-                       <div key={s.id} className="opt-card">
-                          <div>
-                            <div className="opt-header">
-                               <div>
-                                  <div className="opt-title">{s.title}</div>
-                                  <div className="opt-desc" style={{marginTop:'4px', marginBottom:0}}>{s.desc}</div>
-                               </div>
-                               <div className="opt-icon">{s.icon}</div>
-                            </div>
-                            <div style={{borderTop:'1px solid var(--border)', paddingTop:'12px', marginTop:'12px'}}>
-                               <div className="opt-sub">{s.subtext}</div>
-                               <div className="opt-value">+{formatCurrency(s.value)}</div>
-                            </div>
-                          </div>
-                          {s.canApply && (
-                             <button className="opt-btn" onClick={() => {
-                                if(isDayRate) setMonthlyPension(Math.round(s.applyValue/12)); 
-                                else setAnnualPension(Math.round(s.applyValue));
-                                setActiveTab('comparison');
-                             }}>
-                                Apply to Calculator
-                             </button>
-                          )}
-                       </div>
+          {/* ── RIGHT ── */}
+          <div className="panel-right">
+            <div className="tabs-bar">
+              <button className={`tab-btn${activeTab === 'comparison' ? ' active' : ''}`} onClick={() => setActiveTab('comparison')}>Comparison</button>
+              <button className={`tab-btn${activeTab === 'breakdown' ? ' active' : ''}`} onClick={() => setActiveTab('breakdown')}>Breakdown</button>
+              <button className={`tab-btn${activeTab === 'pension' ? ' active' : ''}`} onClick={() => setActiveTab('pension')}>Pension</button>
+              <button className={`tab-btn optimise${activeTab === 'optimize' ? ' active' : ''}`} onClick={() => setActiveTab('optimize')}>Optimise ↗</button>
+            </div>
+
+            {/* COMPARISON */}
+            {activeTab === 'comparison' && (
+              <div>
+                <div className="stat-grid">
+                  <div className="stat-card primary">
+                    <div className="stat-label">Net Annual</div>
+                    <div className="stat-value">{fmt(custom.annualNet)}</div>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-label">Net Monthly</div>
+                    <div className="stat-value">{fmt(custom.monthlyNet)}</div>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-label">Annual Pension</div>
+                    <div className="stat-value">{fmt(custom.pension)}</div>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-label">Effective Tax</div>
+                    <div className="stat-value">{fmtPct(custom.effectiveTaxRate)}</div>
+                  </div>
+                </div>
+
+                <table className="data-table desktop-only">
+                  <thead>
+                    <tr>
+                      <th>Scenario</th><th>Pension / yr</th><th>Net Monthly</th>
+                      <th>Net Annual</th><th>Total Value</th><th>Eff. Tax</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      { label: 'No Pension', data: scenarios.s0 },
+                      { label: '£1k / mo', data: scenarios.s1000 },
+                    ].map((row, i) => (
+                      <tr key={i}>
+                        <td>{row.label}</td>
+                        <td className="mono">{fmt(row.data.pension)}</td>
+                        <td className="mono accent">{fmt(row.data.monthlyNet)}</td>
+                        <td className="mono">{fmt(row.data.annualNet)}</td>
+                        <td className="mono">{fmt(row.data.totalValue)}</td>
+                        <td className="mono">{fmtPct(row.data.effectiveTaxRate)}</td>
+                      </tr>
                     ))}
-                 </div>
-                 <div className="insight-card" style={{marginTop:'30px'}}>
-                   <span className="insight-icon">ℹ️</span>
-                   <div>
-                      <strong>How this works:</strong> These figures are calculated dynamically based on your specific profit band. The "value" shown is the total tax saved (Corporation + Personal) compared to taking the money as dividends.
-                   </div>
-                </div>
-             </div>
-          )}
+                    <tr className="row-highlight">
+                      <td>Your Input</td>
+                      <td className="mono">{fmt(currentAnnualPension)}</td>
+                      <td className="mono accent">{fmt(custom.monthlyNet)}</td>
+                      <td className="mono">{fmt(custom.annualNet)}</td>
+                      <td className="mono">{fmt(custom.totalValue)}</td>
+                      <td className="mono">{fmtPct(custom.effectiveTaxRate)}</td>
+                    </tr>
+                  </tbody>
+                </table>
 
-          {/* TAB: BREAKDOWN */}
-          {activeTab === 'breakdown' && (
-            <div className="tab-pane">
-              <div className="section-header">Inputs</div>
-              <table className="modern-table">
-                 <tbody>
-                  {isDayRate && (
-                    <>
-                      <tr><td>Total Working Days Available</td><td className="mono" style={{textAlign:'right'}}>{TOTAL_DAYS}</td></tr>
-                      <tr><td>Holidays Taken</td><td className="mono" style={{textAlign:'right'}}>{holidays || 0}</td></tr>
-                      <tr><td>Actual Days Worked</td><td className="mono" style={{textAlign:'right', fontWeight:'bold'}}>{workingDays}</td></tr>
-                      <tr><td>Daily Rate</td><td className="mono" style={{textAlign:'right'}}>{formatCurrency(parseFloat(dailyRate)||0)}</td></tr>
-                    </>
-                  )}
-                  <tr>
-                    <td><strong>Annual Turnover</strong></td>
-                    <td className="mono" style={{textAlign:'right', fontWeight:'bold'}}>{formatCurrency(custom.turnover)}</td>
-                  </tr>
-                 </tbody>
-              </table>
-
-              <div className="section-header">Company Calculations</div>
-              <table className="modern-table">
-                <tbody>
-                  <tr><td>Annual Turnover</td><td className="mono" style={{textAlign:'right'}}>{formatCurrency(custom.turnover)}</td></tr>
-                  <tr><td>Less: Director Salary</td><td className="mono" style={{textAlign:'right'}}>-{formatCurrency(SALARY)}</td></tr>
-                  <tr><td>Less: Employer NI</td><td className="mono" style={{textAlign:'right'}}>-{formatCurrency(custom.employerNI)}</td></tr>
-                  <tr><td>Less: Employer Pension</td><td className="mono" style={{textAlign:'right'}}>-{formatCurrency(custom.pension)}</td></tr>
-                  <tr><td>Less: Expenses</td><td className="mono" style={{textAlign:'right'}}>-{formatCurrency(custom.yearlyExpenses)}</td></tr>
-                  <tr className="highlight-row">
-                    <td>Taxable Company Profit</td>
-                    <td className="mono" style={{textAlign:'right'}}>{formatCurrency(custom.profit)}</td>
-                  </tr>
-                  {custom.profit > 50000 && (
-                     <tr className="info-row">
-                        <td>Corporation Tax @ 25% (Comparison Only)</td>
-                        <td className="mono" style={{textAlign:'right'}}>-{formatCurrency(custom.profit * 0.25)}</td>
-                     </tr>
-                  )}
-                  <tr>
-                    <td>{getCTLabel(custom.profit, custom.ctRate)}</td>
-                    <td className="mono" style={{textAlign:'right'}}>-{formatCurrency(custom.ct)}</td>
-                  </tr>
-                  <tr className="highlight-row">
-                    <td>Profit After Tax (Dividends)</td>
-                    <td className="mono" style={{textAlign:'right'}}>{formatCurrency(custom.afterCt)}</td>
-                  </tr>
-                </tbody>
-              </table>
-
-              <div className="section-header">Personal Taxation</div>
-              <table className="modern-table">
-                <tbody>
-                   <tr><td>Director Salary</td><td className="mono" style={{textAlign:'right'}}>{formatCurrency(SALARY)}</td></tr>
-                   <tr><td>Income Tax</td><td className="mono" style={{textAlign:'right'}}>£0</td></tr>
-                   <tr><td>Employee NI</td><td className="mono" style={{textAlign:'right'}}>£0</td></tr>
-                   <tr className="highlight-row"><td>Net Salary</td><td className="mono" style={{textAlign:'right'}}>{formatCurrency(SALARY)}</td></tr>
-                </tbody>
-              </table>
-
-              <div className="section-header">Dividend Taxation</div>
-              <table className="modern-table">
-                <tbody>
-                   <tr><td>Dividend Available</td><td className="mono" style={{textAlign:'right'}}>{formatCurrency(custom.afterCt)}</td></tr>
-                   <tr><td>Dividend Allowance</td><td className="mono" style={{textAlign:'right'}}>£500</td></tr>
-                   <tr><td>Taxable in Basic Band</td><td className="mono" style={{textAlign:'right'}}>{formatCurrency(custom.basicDiv)}</td></tr>
-                   <tr><td>Basic Tax @ {(custom.BASIC_DIV*100).toFixed(2)}%</td><td className="mono" style={{textAlign:'right'}}>-{formatCurrency(custom.basicTax)}</td></tr>
-                   <tr><td>Taxable in Higher Band</td><td className="mono" style={{textAlign:'right'}}>{formatCurrency(custom.higherDiv)}</td></tr>
-                   <tr><td>Higher Tax @ {(custom.HIGHER_DIV*100).toFixed(2)}%</td><td className="mono" style={{textAlign:'right'}}>-{formatCurrency(custom.higherTax)}</td></tr>
-                   <tr className="highlight-row"><td>Total Dividend Tax</td><td className="mono" style={{textAlign:'right'}}>-{formatCurrency(custom.totalDivTax)}</td></tr>
-                   <tr className="highlight-row"><td>Net Dividend</td><td className="mono" style={{textAlign:'right'}}>{formatCurrency(custom.netDiv)}</td></tr>
-                </tbody>
-              </table>
-
-              <div className="section-header">Final Summary</div>
-              <table className="modern-table">
-                <tbody>
-                   <tr><td>Net Salary</td><td className="mono" style={{textAlign:'right'}}>{formatCurrency(SALARY)}</td></tr>
-                   <tr><td>Net Dividend</td><td className="mono" style={{textAlign:'right'}}>{formatCurrency(custom.netDiv)}</td></tr>
-                   <tr className="highlight-row"><td>Total Annual Net (Cash)</td><td className="mono" style={{textAlign:'right'}}>{formatCurrency(custom.annualNet)}</td></tr>
-                   <tr className="highlight-row"><td>Total Monthly Net (Cash)</td><td className="mono" style={{textAlign:'right'}}>{formatCurrency(custom.monthlyNet)}</td></tr>
-                   <tr><td>Plus: Annual Pension</td><td className="mono" style={{textAlign:'right'}}>{formatCurrency(custom.pension)}</td></tr>
-                   <tr className="highlight-row"><td>Total Annual Value</td><td className="mono" style={{textAlign:'right'}}>{formatCurrency(custom.totalValue)}</td></tr>
-                </tbody>
-              </table>
-
-              <div className="section-header">Tax Paid</div>
-              <table className="modern-table">
-                <tbody>
-                  <tr><td>Corporation Tax</td><td className="mono" style={{textAlign:'right'}}>{formatCurrency(custom.ct)}</td></tr>
-                  <tr><td>Employer NI</td><td className="mono" style={{textAlign:'right'}}>{formatCurrency(custom.employerNI)}</td></tr>
-                  <tr><td>Dividend Tax</td><td className="mono" style={{textAlign:'right'}}>{formatCurrency(custom.totalDivTax)}</td></tr>
-                  <tr className="highlight-row"><td>Total Tax & NI</td><td className="mono" style={{textAlign:'right'}}>{formatCurrency(custom.totalTax)}</td></tr>
-                  <tr className="highlight-row"><td>Effective Tax Rate</td><td className="mono" style={{textAlign:'right'}}>{formatPercentage(custom.effectiveTaxRate)}</td></tr>
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {/* TAB: PENSION */}
-          {activeTab === 'pension' && (
-            <div className="tab-pane">
-              <div className="controls-grid">
-                <div className="input-group">
-                  <label>Current Pot</label>
-                  <input type="number" value={pensionStartBalance} onChange={(e) => setPensionStartBalance(e.target.value)} placeholder="0" />
-                </div>
-                <div className="input-group">
-                  <label>Age</label>
-                  <input type="number" value={currentAge} onChange={(e) => setCurrentAge(e.target.value)} placeholder="0" />
-                </div>
-                <div className="input-group">
-                  <label>Growth %</label>
-                  <input type="number" value={pensionGrowth} onChange={(e) => setPensionGrowth(e.target.value)} placeholder="5" />
+                <div className="scenario-cards mobile-only">
+                  {[
+                    { label: 'No Pension', data: scenarios.s0, isUser: false },
+                    { label: '£1k / mo pension', data: scenarios.s1000, isUser: false },
+                    {
+                      label: currentAnnualPension > 0
+                        ? `Your input — ${fmt(currentAnnualPension / 12 / 1000 % 1 === 0 ? currentAnnualPension / 12 / 1000 : (currentAnnualPension / 12 / 1000).toFixed(1))}k / mo`
+                        : 'Your input',
+                      data: custom, isUser: true
+                    },
+                  ].map((row, i) => (
+                    <div key={i} className={`scenario-card${row.isUser ? ' scenario-card--active' : ''}`}>
+                      <p className="scenario-card__name">{row.label}</p>
+                      <div className="scenario-card__row">
+                        <span className="scenario-card__lbl">Net monthly</span>
+                        <span className="scenario-card__monthly">{fmt(row.data.monthlyNet)}</span>
+                      </div>
+                      <div className="scenario-card__row">
+                        <span className="scenario-card__lbl">Net annual</span>
+                        <span className="scenario-card__val">{fmt(row.data.annualNet)}</span>
+                      </div>
+                      <div className="scenario-card__row">
+                        <span className="scenario-card__lbl">Eff. tax</span>
+                        <span className="scenario-card__val">{fmtPct(row.data.effectiveTaxRate)}</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
+            )}
 
-              <div className="section-header">Projection (Contributing {formatCurrency(currentAnnualPension)}/yr)</div>
-              <table className="modern-table">
-                <thead>
-                  <tr>
-                    <th>Age</th>
-                    <th style={{textAlign:'right'}}>Contribution</th>
-                    <th style={{textAlign:'right'}}>Growth</th>
-                    <th style={{textAlign:'right'}}>Total Pot</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {projectionData.map((row) => (
-                    <tr key={row.year} className={row.isMillionRow ? 'gold-row' : ''}>
-                      <td>{row.age}</td>
-                      <td className="mono" style={{textAlign:'right'}}>{formatCurrency(row.contrib)}</td>
-                      <td className="mono" style={{textAlign:'right'}}>{formatCurrency(row.growth)}</td>
-                      <td className="mono" style={{textAlign:'right'}}>{formatCurrency(row.end)}</td>
-                    </tr>
+            {/* BREAKDOWN */}
+            {activeTab === 'breakdown' && (
+              <div>
+                <div className="section-header">Inputs</div>
+                <table className="data-table">
+                  <tbody>
+                    {isDayRate && (<>
+                      <tr><td>Total Working Days Available</td><td className="mono">{TOTAL_DAYS}</td></tr>
+                      <tr><td>Holidays Taken</td><td className="mono">{holidays || 0}</td></tr>
+                      <tr><td>Actual Days Worked</td><td className="mono" style={{ fontWeight: 700 }}>{workingDays}</td></tr>
+                      <tr><td>Daily Rate</td><td className="mono">{fmt(parseFloat(dailyRate) || 0)}</td></tr>
+                    </>)}
+                    <tr className="row-highlight"><td>Annual Turnover</td><td className="mono">{fmt(custom.turnover)}</td></tr>
+                  </tbody>
+                </table>
+
+                <div className="section-header">Company Calculations</div>
+                <table className="data-table">
+                  <tbody>
+                    <tr><td>Annual Turnover</td><td className="mono">{fmt(custom.turnover)}</td></tr>
+                    <tr><td>Less: Director Salary</td><td className="mono" style={{ color: 'var(--danger)' }}>−{fmt(SALARY)}</td></tr>
+                    <tr><td>Less: Employer NI</td><td className="mono" style={{ color: 'var(--danger)' }}>−{fmt(custom.employerNI)}</td></tr>
+                    <tr><td>Less: Employer Pension</td><td className="mono" style={{ color: 'var(--danger)' }}>−{fmt(custom.pension)}</td></tr>
+                    <tr><td>Less: Expenses</td><td className="mono" style={{ color: 'var(--danger)' }}>−{fmt(custom.yearlyExpenses)}</td></tr>
+                    <tr className="row-highlight"><td>Taxable Company Profit</td><td className="mono">{fmt(custom.profit)}</td></tr>
+                    <tr><td>{getCTLabel(custom.profit, custom.ctRate)}</td><td className="mono" style={{ color: 'var(--danger)' }}>−{fmt(custom.ct)}</td></tr>
+                    <tr className="row-highlight"><td>After-Tax Profit (available for dividends)</td><td className="mono">{fmt(custom.afterCt)}</td></tr>
+                  </tbody>
+                </table>
+
+                <div className="section-header">Personal Tax</div>
+                <table className="data-table">
+                  <tbody>
+                    <tr><td>Director Salary</td><td className="mono">{fmt(SALARY)}</td></tr>
+                    <tr><td>Taxable in Basic Band</td><td className="mono">{fmt(custom.basicDiv)}</td></tr>
+                    <tr><td>Basic Div Tax @ {(custom.BASIC_DIV * 100).toFixed(2)}%</td><td className="mono" style={{ color: 'var(--danger)' }}>−{fmt(custom.basicTax)}</td></tr>
+                    <tr><td>Taxable in Higher Band</td><td className="mono">{fmt(custom.higherDiv)}</td></tr>
+                    <tr><td>Higher Div Tax @ {(custom.HIGHER_DIV * 100).toFixed(2)}%</td><td className="mono" style={{ color: 'var(--danger)' }}>−{fmt(custom.higherTax)}</td></tr>
+                    <tr className="row-highlight"><td>Total Dividend Tax</td><td className="mono" style={{ color: 'var(--danger)' }}>−{fmt(custom.totalDivTax)}</td></tr>
+                    <tr className="row-highlight"><td>Net Dividend</td><td className="mono">{fmt(custom.netDiv)}</td></tr>
+                  </tbody>
+                </table>
+
+                <div className="section-header">Final Summary</div>
+                <table className="data-table">
+                  <tbody>
+                    <tr><td>Net Salary</td><td className="mono">{fmt(SALARY)}</td></tr>
+                    <tr><td>Net Dividend</td><td className="mono">{fmt(custom.netDiv)}</td></tr>
+                    <tr className="row-highlight"><td>Total Annual Net (Cash)</td><td className="mono">{fmt(custom.annualNet)}</td></tr>
+                    <tr className="row-highlight"><td>Total Monthly Net</td><td className="mono">{fmt(custom.monthlyNet)}</td></tr>
+                    <tr><td>Plus: Annual Pension</td><td className="mono" style={{ color: 'var(--success)' }}>+{fmt(custom.pension)}</td></tr>
+                    <tr className="row-highlight"><td>Total Annual Value (incl. pension)</td><td className="mono">{fmt(custom.totalValue)}</td></tr>
+                  </tbody>
+                </table>
+
+                <div className="section-header">Tax Paid</div>
+                <table className="data-table">
+                  <tbody>
+                    <tr><td>Corporation Tax</td><td className="mono">{fmt(custom.ct)}</td></tr>
+                    <tr><td>Employer NI</td><td className="mono">{fmt(custom.employerNI)}</td></tr>
+                    <tr><td>Dividend Tax</td><td className="mono">{fmt(custom.totalDivTax)}</td></tr>
+                    <tr className="row-highlight"><td>Total Tax &amp; NI</td><td className="mono">{fmt(custom.totalTax)}</td></tr>
+                    <tr className="row-highlight"><td>Effective Tax Rate</td><td className="mono">{fmtPct(custom.effectiveTaxRate)}</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* PENSION */}
+            {activeTab === 'pension' && (
+              <div>
+                <div className="pension-inputs">
+                  <div className="field">
+                    <label className="field-label">Current Pot</label>
+                    <div className="input-wrap">
+                      <span className="input-affix prefix">£</span>
+                      <input className="field-input" type="number" value={pensionStartBalance} onChange={e => setPensionStartBalance(e.target.value)} placeholder="0" />
+                    </div>
+                  </div>
+                  <div className="field">
+                    <label className="field-label">Current Age</label>
+                    <div className="input-wrap">
+                      <input className="field-input" type="number" value={currentAge} onChange={e => setCurrentAge(e.target.value)} placeholder="35" style={{ paddingLeft: 14 }} />
+                      <span className="input-affix suffix">yrs</span>
+                    </div>
+                  </div>
+                  <div className="field">
+                    <label className="field-label">Annual Growth</label>
+                    <div className="input-wrap">
+                      <input className="field-input" type="number" value={pensionGrowth} onChange={e => setPensionGrowth(e.target.value)} placeholder="5" style={{ paddingLeft: 14 }} />
+                      <span className="input-affix suffix">%</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="section-header">
+                  <span>25-Year Projection</span>
+                  <span>Contributing {fmt(currentAnnualPension)} / yr</span>
+                </div>
+                <table className="data-table">
+                  <thead>
+                    <tr><th>Age</th><th>Contribution</th><th>Growth</th><th>Total Pot</th></tr>
+                  </thead>
+                  <tbody>
+                    {projectionData.map(row => (
+                      <tr key={row.year} className={row.isMillionRow ? 'row-gold' : ''}>
+                        <td>{row.age}</td>
+                        <td className="mono">{fmt(row.contrib)}</td>
+                        <td className="mono">{fmt(row.growth)}</td>
+                        <td className="mono" style={{ fontWeight: row.isMillionRow ? 700 : 400 }}>{fmt(row.end)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* OPTIMISE */}
+            {activeTab === 'optimize' && (
+              <div>
+                <div className="section-header">
+                  <span>Efficiency Opportunities</span>
+                  <span>Marginal rate: {(custom.marginalRate * 100).toFixed(1)}%</span>
+                </div>
+                <div className="opt-grid">
+                  {strategies.map(s => (
+                    <div key={s.id} className="opt-card">
+                      <div className="opt-card-top">
+                        <span className="opt-icon">{s.icon}</span>
+                        <div>
+                          <div className="opt-title">{s.title}</div>
+                          <div className="opt-desc">{s.desc}</div>
+                        </div>
+                      </div>
+                      <div className="opt-footer">
+                        <div>
+                          <div className="opt-sub">{s.subtext}</div>
+                          <div className="opt-value">+{fmt(s.value)}</div>
+                        </div>
+                        {s.canApply && (
+                          <button className="opt-apply-btn" onClick={() => {
+                            if (isDayRate) setMonthlyPension(String(Math.round(s.applyValue / 12)));
+                            else setAnnualPension(String(Math.round(s.applyValue)));
+                            setActiveTab('comparison');
+                          }}>Apply →</button>
+                        )}
+                      </div>
+                    </div>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                </div>
+                <div className="insight-box">
+                  <strong>How this works:</strong> Values are calculated dynamically from your profit band.
+                  Savings shown are the total tax avoided (Corp Tax + dividend tax) vs. taking the money as dividends.
+                </div>
+              </div>
+            )}
 
+          </div>
         </div>
       </div>
     </>
