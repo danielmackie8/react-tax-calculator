@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 
 // --- CONSTANTS ---
 const SALARY = 12570;
@@ -7,6 +7,8 @@ const DIV_ALLOWANCE = 500;
 const TOTAL_DAYS = 253;
 const EMPLOYER_NI_THRESHOLD = 5000;
 const EMPLOYER_NI_RATE = 0.15;
+
+const TAB_ORDER = ['comparison', 'breakdown', 'pension', 'optimize'];
 
 // --- HELPERS ---
 const getDividendRates = (taxYear) =>
@@ -208,6 +210,7 @@ const CSS = `
   .tab-btn:hover { color: var(--text); }
   .tab-btn.active { color: var(--text); border-bottom-color: var(--text); }
   .tab-btn.optimise { margin-left: auto; color: var(--success); }
+  .tab-content { touch-action: pan-y; }
   .tab-btn.optimise.active { border-bottom-color: var(--success); color: var(--success); }
 
   /* ── Stat grid ── */
@@ -329,6 +332,24 @@ export default function App() {
   const [incomeMode, setIncomeMode] = useState('dayRate');
   const [taxYear, setTaxYear] = useState('2026');
   const [activeTab, setActiveTab] = useState('comparison');
+
+  const touchRef = useRef(null);
+  const handleTouchStart = (e) => {
+    const t = e.touches[0];
+    touchRef.current = { x: t.clientX, y: t.clientY };
+  };
+  const handleTouchEnd = (e) => {
+    if (!touchRef.current) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - touchRef.current.x;
+    const dy = t.clientY - touchRef.current.y;
+    touchRef.current = null;
+    const SWIPE_THRESHOLD = 50;
+    if (Math.abs(dx) < SWIPE_THRESHOLD || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    const currentIndex = TAB_ORDER.indexOf(activeTab);
+    const nextIndex = dx < 0 ? currentIndex + 1 : currentIndex - 1;
+    if (nextIndex >= 0 && nextIndex < TAB_ORDER.length) setActiveTab(TAB_ORDER[nextIndex]);
+  };
 
   const [dailyRate, setDailyRate] = useState('');
   const [holidays, setHolidays] = useState('');
@@ -527,6 +548,7 @@ export default function App() {
               <button className={`tab-btn optimise${activeTab === 'optimize' ? ' active' : ''}`} onClick={() => setActiveTab('optimize')}>Optimise ↗</button>
             </div>
 
+            <div className="tab-content" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
             {/* COMPARISON */}
             {activeTab === 'comparison' && (
               <div>
@@ -767,6 +789,7 @@ export default function App() {
                 </div>
               </div>
             )}
+            </div>
 
           </div>
         </div>
