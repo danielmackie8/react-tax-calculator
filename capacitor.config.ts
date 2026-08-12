@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.danielmackie.ltdtaxcalculator',
-  appName: 'Ltd Tax Calculator',
+  appName: 'IR35 Calc',
   webDir: 'build'
 };
 

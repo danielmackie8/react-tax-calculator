@@ -30,7 +30,7 @@ Whenever you change the React app, re-run `npm run ios:sync` (or `npm run ios:op
 ### App identity
 
 - Bundle ID: `com.danielmackie.ltdtaxcalculator`
-- Display name: `Ltd Tax Calculator`
+- Display name: `IR35 Calc`
 
 Change these in `ios/App/App.xcodeproj` (via Xcode's Signing & Capabilities / General tabs) if you need a different bundle ID for your own Apple Developer account, and update `capacitor.config.ts` (`appId`/`appName`) to match.
 

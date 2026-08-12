@@ -1,6 +1,6 @@
 {
-  "short_name": "Tax Calc",
-  "name": "Ltd Tax Calculator",
+  "short_name": "IR35 Calc",
+  "name": "IR35 Calc",
   "icons": [
     {
       "src": "favicon.ico",

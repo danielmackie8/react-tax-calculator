@@ -501,7 +501,7 @@ export default function App() {
       <div className="app">
 
         <header className="app-header">
-          <h1 className="app-title">LTD Tax Calculator</h1>
+          <h1 className="app-title">IR35 Calc</h1>
         </header>
 
         <div className="split-card">
