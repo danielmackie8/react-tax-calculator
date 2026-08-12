@@ -2,6 +2,42 @@
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
+## iOS App
+
+This project is wrapped as a native iOS app using [Capacitor](https://capacitorjs.com/). The web app itself is unchanged — Capacitor packages the production build into a real Xcode project (`ios/`) that runs in a native WKWebView.
+
+### Requirements
+
+- A Mac with [Xcode](https://apps.apple.com/us/app/xcode/id497799835) installed (Xcode's iOS Simulator and device deployment only work on macOS)
+- [CocoaPods](https://cocoapods.org/) (`sudo gem install cocoapods`)
+- An [Apple Developer account](https://developer.apple.com/) (free for Simulator testing; paid, $99/yr, required to install on a physical device or submit to the App Store)
+
+### Building and running
+
+```bash
+npm install
+npm run ios:open
+```
+
+This builds the React app, copies it into the native project (`npx cap sync ios`), and opens `ios/App/App.xcworkspace` in Xcode. From Xcode:
+
+1. Select a Simulator (or your connected iPhone) as the run target
+2. Under **Signing & Capabilities**, select your Apple Developer team (needed for a physical device)
+3. Press ▶ (Cmd+R) to build and run
+
+Whenever you change the React app, re-run `npm run ios:sync` (or `npm run ios:open`) to pull the latest web build into the iOS project before rebuilding in Xcode.
+
+### App identity
+
+- Bundle ID: `com.danielmackie.ltdtaxcalculator`
+- Display name: `Ltd Tax Calculator`
+
+Change these in `ios/App/App.xcodeproj` (via Xcode's Signing & Capabilities / General tabs) if you need a different bundle ID for your own Apple Developer account, and update `capacitor.config.ts` (`appId`/`appName`) to match.
+
+### App Store submission
+
+Once you're happy with the build: in Xcode, `Product > Archive`, then use the Organizer window to upload to App Store Connect. You'll need an active Apple Developer Program membership for this step.
+
 ## Available Scripts
 
 In the project directory, you can run:

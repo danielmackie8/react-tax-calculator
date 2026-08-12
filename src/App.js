@@ -108,7 +108,10 @@ const CSS = `
     line-height: 1.5;
   }
 
-  .app { max-width: 1100px; margin: 0 auto; padding: 36px 24px 80px; }
+  .app {
+    max-width: 1100px; margin: 0 auto;
+    padding: calc(36px + env(safe-area-inset-top)) calc(24px + env(safe-area-inset-right)) calc(80px + env(safe-area-inset-bottom)) calc(24px + env(safe-area-inset-left));
+  }
 
   .app-header {
     display: flex; align-items: flex-start;
@@ -300,7 +303,9 @@ const CSS = `
 
   /* ── Mobile ── */
   @media (max-width: 600px) {
-    .app { padding: 20px 14px 60px; }
+    .app {
+      padding: calc(20px + env(safe-area-inset-top)) calc(14px + env(safe-area-inset-right)) calc(60px + env(safe-area-inset-bottom)) calc(14px + env(safe-area-inset-left));
+    }
     .app-title { font-size: 1.25rem; }
     .panel-left, .panel-right { padding: 16px; }
     .stat-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
