@@ -25,3 +25,8 @@ ios/**/*.xcuserstate
 ios/capacitor-cordova-ios-plugins
 ios/App/App/capacitor.config.json
 ios/App/App/config.xml
+
+# iOS native (XcodeGen-generated — regenerate with `xcodegen generate`)
+ios-native/IR35Calc.xcodeproj
+ios-native/DerivedData
+ios-native/**/xcuserdata

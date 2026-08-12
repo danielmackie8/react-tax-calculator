@@ -7,10 +7,48 @@ hand-rolled touch handling.
 
 I can't compile or run Xcode from this environment, so instead of hand-editing
 a `.xcodeproj` file blindly (risky — a malformed project file is hard to debug
-without Xcode itself), this folder just contains the Swift source files.
-Creating the actual Xcode project takes about 5 minutes:
+without Xcode itself), this folder includes a `project.yml` for
+[XcodeGen](https://github.com/yonaskolb/XcodeGen), which generates a real
+`.xcodeproj` from that spec — no manual "New Project" wizard, no dragging
+files in one by one.
 
-## 1. Create a fresh Xcode project
+## Option A: XcodeGen (recommended — mostly automated)
+
+In Terminal:
+
+```bash
+brew install xcodegen
+```
+
+```bash
+cd react-tax-calculator/ios-native
+xcodegen generate
+```
+
+```bash
+open IR35Calc.xcodeproj
+```
+
+That creates and opens a fully-formed Xcode project with all 10 Swift files
+already wired into the target, deployment target set to iOS 16.0, and a
+generated Info.plist. The only manual step left in Xcode is signing:
+
+1. Click the **IR35Calc** project → **IR35Calc** target → **Signing & Capabilities**
+2. Pick your Developer **Team** from the dropdown
+
+Then Cmd+R to build and run.
+
+Don't have Homebrew? Install it first with:
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+Whenever the Swift files change, just re-run `xcodegen generate` from
+`ios-native/` to refresh the project — you never need to touch file
+references in Xcode by hand.
+
+## Option B: Manual Xcode wizard (fallback if XcodeGen isn't for you)
 
 1. Open Xcode → **File → New → Project**
 2. Choose **iOS → App**, then Next
@@ -19,33 +57,16 @@ Creating the actual Xcode project takes about 5 minutes:
 5. Language: **Swift**
 6. Uncheck "Include Tests" (not needed)
 7. Save it anywhere temporarily (e.g. Desktop) — you'll move it into the repo after
-
-## 2. Swap in these files
-
-1. In the Xcode project navigator, delete the two auto-generated files
+8. In the Xcode project navigator, delete the two auto-generated files
    `ContentView.swift` and `IR35CalcApp.swift` (choose "Move to Trash")
-2. In Finder, drag every `.swift` file from this folder
-   (`ios-native/IR35Calc/`) into the Xcode project navigator
-3. When prompted, check **"Copy items if needed"** and make sure
-   **"IR35Calc" target** is checked
+9. In Finder, drag every `.swift` file from `ios-native/IR35Calc/` into the
+   Xcode project navigator, checking **"Copy items if needed"** and the
+   **IR35Calc** target
+10. Set **Minimum Deployments** to **iOS 16.0** under the target's General tab
+11. Under **Signing & Capabilities**, pick your Developer Team
+12. Cmd+R to build and run
 
-## 3. Project settings
-
-1. Select the project in the navigator → the **IR35Calc** target → **General**
-2. Set **Minimum Deployments** to **iOS 16.0**
-3. Go to **Signing & Capabilities**:
-   - Pick your Developer Team
-   - Set **Bundle Identifier** to `com.danielmackie.ltdtaxcalculator` if you
-     want this to be recognized as an update to the app already on your phone
-     (delete the old wrapper app first if you do this — see the note below)
-
-## 4. Build & run
-
-Cmd+R, pick your Simulator or device, and it should launch showing "IR35 Calc"
-with the same inputs panel and swipeable Comparison / Breakdown / Pension /
-Optimise tabs as the web version.
-
-## 5. Once you're happy with it
+## Once you're happy with it
 
 Move the new `IR35Calc.xcodeproj` (and its folder) into this repo, e.g.
 `ios-native/IR35Calc.xcodeproj`, and commit it. At that point you can decide
