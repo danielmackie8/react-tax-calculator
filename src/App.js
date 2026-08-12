@@ -333,23 +333,62 @@ export default function App() {
   const [taxYear, setTaxYear] = useState('2026');
   const [activeTab, setActiveTab] = useState('comparison');
 
-  const touchRef = useRef(null);
-  const handleTouchStart = (e) => {
-    const t = e.touches[0];
-    touchRef.current = { x: t.clientX, y: t.clientY };
-  };
-  const handleTouchEnd = (e) => {
-    if (!touchRef.current) return;
-    const t = e.changedTouches[0];
-    const dx = t.clientX - touchRef.current.x;
-    const dy = t.clientY - touchRef.current.y;
-    touchRef.current = null;
+  const tabContentRef = useRef(null);
+
+  useEffect(() => {
+    const el = tabContentRef.current;
+    if (!el) return;
     const SWIPE_THRESHOLD = 50;
-    if (Math.abs(dx) < SWIPE_THRESHOLD || Math.abs(dx) < Math.abs(dy) * 1.5) return;
-    const currentIndex = TAB_ORDER.indexOf(activeTab);
-    const nextIndex = dx < 0 ? currentIndex + 1 : currentIndex - 1;
-    if (nextIndex >= 0 && nextIndex < TAB_ORDER.length) setActiveTab(TAB_ORDER[nextIndex]);
-  };
+    const LOCK_THRESHOLD = 10;
+    let gesture = null;
+
+    const onStart = (e) => {
+      const t = e.touches[0];
+      gesture = { startX: t.clientX, startY: t.clientY, lastX: t.clientX, locked: null };
+    };
+
+    const onMove = (e) => {
+      if (!gesture) return;
+      const t = e.touches[0];
+      const dx = t.clientX - gesture.startX;
+      const dy = t.clientY - gesture.startY;
+      if (!gesture.locked && (Math.abs(dx) > LOCK_THRESHOLD || Math.abs(dy) > LOCK_THRESHOLD)) {
+        gesture.locked = Math.abs(dx) > Math.abs(dy) ? 'horizontal' : 'vertical';
+      }
+      if (gesture.locked === 'horizontal') {
+        // Claim the gesture so iOS doesn't hijack it into a native vertical
+        // scroll (which would cancel our touch sequence via touchcancel).
+        e.preventDefault();
+        gesture.lastX = t.clientX;
+      }
+    };
+
+    const onEnd = () => {
+      const g = gesture;
+      gesture = null;
+      if (!g || g.locked !== 'horizontal') return;
+      const dx = g.lastX - g.startX;
+      if (Math.abs(dx) < SWIPE_THRESHOLD) return;
+      setActiveTab((current) => {
+        const currentIndex = TAB_ORDER.indexOf(current);
+        const nextIndex = dx < 0 ? currentIndex + 1 : currentIndex - 1;
+        return nextIndex >= 0 && nextIndex < TAB_ORDER.length ? TAB_ORDER[nextIndex] : current;
+      });
+    };
+
+    const onCancel = () => { gesture = null; };
+
+    el.addEventListener('touchstart', onStart, { passive: true });
+    el.addEventListener('touchmove', onMove, { passive: false });
+    el.addEventListener('touchend', onEnd, { passive: true });
+    el.addEventListener('touchcancel', onCancel, { passive: true });
+    return () => {
+      el.removeEventListener('touchstart', onStart);
+      el.removeEventListener('touchmove', onMove);
+      el.removeEventListener('touchend', onEnd);
+      el.removeEventListener('touchcancel', onCancel);
+    };
+  }, []);
 
   const [dailyRate, setDailyRate] = useState('');
   const [holidays, setHolidays] = useState('');
@@ -548,7 +587,7 @@ export default function App() {
               <button className={`tab-btn optimise${activeTab === 'optimize' ? ' active' : ''}`} onClick={() => setActiveTab('optimize')}>Optimise ↗</button>
             </div>
 
-            <div className="tab-content" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+            <div className="tab-content" ref={tabContentRef}>
             {/* COMPARISON */}
             {activeTab === 'comparison' && (
               <div>
