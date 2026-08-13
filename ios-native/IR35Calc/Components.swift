@@ -8,7 +8,7 @@ struct Card<Content: View>: View {
     let padding: CGFloat
     let content: Content
 
-    init(cornerRadius: CGFloat = 20, padding: CGFloat = 18, @ViewBuilder content: () -> Content) {
+    init(cornerRadius: CGFloat = 18, padding: CGFloat = 14, @ViewBuilder content: () -> Content) {
         self.cornerRadius = cornerRadius
         self.padding = padding
         self.content = content()
@@ -32,9 +32,9 @@ struct SmallCard<Content: View>: View {
 
     var body: some View {
         content
-            .padding(16)
+            .padding(12)
             .background(Color.appCard)
-            .cornerRadius(16)
+            .cornerRadius(14)
             .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
     }
 }
@@ -47,7 +47,7 @@ struct HeroStat: View {
     let pillText: String
     let pillColor: Color
     let pillTint: Color
-    var bigFontSize: CGFloat = 38
+    var bigFontSize: CGFloat = 32
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -81,7 +81,7 @@ struct SegmentedPill<T: Hashable>: View {
                         .font(.mono(12.5, .semibold))
                         .foregroundColor(selection == option.value ? .appActiveText : .appTextSecondary)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 9)
+                        .padding(.vertical, 7)
                         .background(
                             Capsule().fill(selection == option.value ? Color.appActiveFill : Color.clear)
                         )
@@ -89,7 +89,7 @@ struct SegmentedPill<T: Hashable>: View {
                 .buttonStyle(.plain)
             }
         }
-        .padding(4)
+        .padding(3)
         .background(Capsule().fill(Color.appTrack))
     }
 }
@@ -103,7 +103,7 @@ struct DesignField: View {
     var hint: String? = nil
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 4) {
             Text(label)
                 .font(.mono(11, .regular))
                 .foregroundColor(.appTextSecondary)
@@ -111,12 +111,12 @@ struct DesignField: View {
                 .keyboardType(.decimalPad)
                 .font(.mono(15, .regular))
                 .foregroundColor(.appTextPrimary)
-                .padding(13)
+                .padding(10)
                 .background(Color.appBackground)
-                .cornerRadius(14)
+                .cornerRadius(12)
             if let hint = hint {
                 Text(hint)
-                    .font(.mono(11, .regular))
+                    .font(.mono(10.5, .regular))
                     .foregroundColor(.appTextFaint)
             }
         }

@@ -13,35 +13,35 @@ struct ContentView: View {
             TabView(selection: $selectedTab) {
                 ScrollView {
                     SetupView(vm: vm)
-                        .padding(20)
+                        .padding(16)
                 }
                 .scrollDismissesKeyboard(.interactively)
                 .tag(CalcTab.setup)
 
                 ScrollView {
                     ComparisonView(vm: vm)
-                        .padding(20)
+                        .padding(16)
                 }
                 .scrollDismissesKeyboard(.interactively)
                 .tag(CalcTab.comparison)
 
                 ScrollView {
                     BreakdownView(vm: vm)
-                        .padding(20)
+                        .padding(16)
                 }
                 .scrollDismissesKeyboard(.interactively)
                 .tag(CalcTab.breakdown)
 
                 ScrollView {
                     PensionView(vm: vm)
-                        .padding(20)
+                        .padding(16)
                 }
                 .scrollDismissesKeyboard(.interactively)
                 .tag(CalcTab.pension)
 
                 ScrollView {
                     OptimizeView(vm: vm, selectedTab: $selectedTab)
-                        .padding(20)
+                        .padding(16)
                 }
                 .scrollDismissesKeyboard(.interactively)
                 .tag(CalcTab.optimize)
@@ -50,8 +50,6 @@ struct ContentView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             BottomNav(selection: $selectedTab)
-                .padding(.horizontal, 12)
-                .padding(.bottom, 10)
         }
         .background(Color.appBackground.ignoresSafeArea())
     }
@@ -73,7 +71,7 @@ struct ContentView: View {
                 .background(Circle().fill(Color.appActiveFill))
         }
         .padding(.horizontal, 20)
-        .padding(.top, 12)
+        .padding(.top, 8)
     }
 }
 
@@ -96,18 +94,20 @@ struct BottomNav: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 8)
                     .background(
-                        RoundedRectangle(cornerRadius: 16)
+                        RoundedRectangle(cornerRadius: 14)
                             .fill(selection == tab ? Color.appNavActiveBg : Color.clear)
                     )
                 }
                 .buttonStyle(.plain)
             }
         }
-        .padding(6)
+        .padding(.horizontal, 10)
+        .padding(.top, 8)
+        .padding(.bottom, 8)
         .background(
-            RoundedRectangle(cornerRadius: 22)
-                .fill(Color.appCard)
-                .shadow(color: Color.black.opacity(0.06), radius: 8, x: 0, y: 4)
+            Color.appCard
+                .overlay(Rectangle().fill(Color.appDivider).frame(height: 1), alignment: .top)
+                .ignoresSafeArea(edges: .bottom)
         )
     }
 }

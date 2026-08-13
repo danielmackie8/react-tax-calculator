@@ -15,7 +15,7 @@ struct PensionView: View {
                 pillText: "\(Fmt.currency(vm.currentAnnualPension))/yr in",
                 pillColor: .appSuccess,
                 pillTint: .appSuccessTint,
-                bigFontSize: 34
+                bigFontSize: 30
             )
 
             Card {
