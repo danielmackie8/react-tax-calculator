@@ -13,35 +13,35 @@ struct ContentView: View {
             TabView(selection: $selectedTab) {
                 ScrollView {
                     SetupView(vm: vm)
-                        .padding(16)
+                        .padding(20)
                 }
                 .scrollDismissesKeyboard(.interactively)
                 .tag(CalcTab.setup)
 
                 ScrollView {
                     ComparisonView(vm: vm)
-                        .padding(16)
+                        .padding(20)
                 }
                 .scrollDismissesKeyboard(.interactively)
                 .tag(CalcTab.comparison)
 
                 ScrollView {
                     BreakdownView(vm: vm)
-                        .padding(16)
+                        .padding(20)
                 }
                 .scrollDismissesKeyboard(.interactively)
                 .tag(CalcTab.breakdown)
 
                 ScrollView {
                     PensionView(vm: vm)
-                        .padding(16)
+                        .padding(20)
                 }
                 .scrollDismissesKeyboard(.interactively)
                 .tag(CalcTab.pension)
 
                 ScrollView {
                     OptimizeView(vm: vm, selectedTab: $selectedTab)
-                        .padding(16)
+                        .padding(20)
                 }
                 .scrollDismissesKeyboard(.interactively)
                 .tag(CalcTab.optimize)
@@ -71,7 +71,7 @@ struct ContentView: View {
                 .background(Circle().fill(Color.appActiveFill))
         }
         .padding(.horizontal, 20)
-        .padding(.top, 8)
+        .padding(.top, 12)
     }
 }
 
@@ -103,11 +103,11 @@ struct BottomNav: View {
         }
         .padding(.horizontal, 10)
         .padding(.top, 8)
-        .padding(.bottom, 8)
+        .padding(.bottom, 12)
         .background(
             Color.appCard
                 .overlay(Rectangle().fill(Color.appDivider).frame(height: 1), alignment: .top)
-                .ignoresSafeArea(edges: .bottom)
         )
+        .ignoresSafeArea(edges: .bottom)
     }
 }
