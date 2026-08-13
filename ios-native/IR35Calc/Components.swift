@@ -1,162 +1,211 @@
 import SwiftUI
 import UIKit
 
-// MARK: - Segmented control (matches .seg / .seg-btn)
+// MARK: - Card containers
 
-struct SegmentedControl<T: Hashable>: View {
+struct Card<Content: View>: View {
+    let cornerRadius: CGFloat
+    let padding: CGFloat
+    let content: Content
+
+    init(cornerRadius: CGFloat = 20, padding: CGFloat = 18, @ViewBuilder content: () -> Content) {
+        self.cornerRadius = cornerRadius
+        self.padding = padding
+        self.content = content()
+    }
+
+    var body: some View {
+        content
+            .padding(padding)
+            .background(Color.appCard)
+            .cornerRadius(cornerRadius)
+            .shadow(color: Color.black.opacity(0.06), radius: 8, x: 0, y: 4)
+    }
+}
+
+struct SmallCard<Content: View>: View {
+    let content: Content
+
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
+
+    var body: some View {
+        content
+            .padding(16)
+            .background(Color.appCard)
+            .cornerRadius(16)
+            .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+    }
+}
+
+// MARK: - Hero stat (kicker label, big number, trend/value pill)
+
+struct HeroStat: View {
+    let kicker: String
+    let value: String
+    let pillText: String
+    let pillColor: Color
+    let pillTint: Color
+    var bigFontSize: CGFloat = 38
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(kicker.uppercased())
+                .font(.mono(11, .regular))
+                .tracking(1.1)
+                .foregroundColor(.appTextSecondary)
+            HStack(alignment: .lastTextBaseline, spacing: 10) {
+                Text(value)
+                    .font(.mono(bigFontSize, .bold))
+                    .foregroundColor(.appTextPrimary)
+                Pill(text: pillText, color: pillColor, tint: pillTint)
+            }
+        }
+    }
+}
+
+// MARK: - Segmented pill control (tax year / income mode toggles)
+
+struct SegmentedPill<T: Hashable>: View {
     let options: [SegmentOption<T>]
     @Binding var selection: T
 
     var body: some View {
-        HStack(spacing: 2) {
+        HStack(spacing: 4) {
             ForEach(options) { option in
                 Button {
                     selection = option.value
                 } label: {
                     Text(option.label)
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.mono(12.5, .semibold))
+                        .foregroundColor(selection == option.value ? .appActiveText : .appTextSecondary)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 7)
-                        .background(selection == option.value ? Color.appBackground : Color.clear)
-                        .foregroundColor(selection == option.value ? Color.appText : Color.appTextSecondary)
-                        .cornerRadius(5)
+                        .padding(.vertical, 9)
+                        .background(
+                            Capsule().fill(selection == option.value ? Color.appActiveFill : Color.clear)
+                        )
                 }
                 .buttonStyle(.plain)
             }
         }
-        .padding(3)
-        .background(Color.appBackgroundMuted)
-        .cornerRadius(8)
-        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appBorderStrong, lineWidth: 1))
+        .padding(4)
+        .background(Capsule().fill(Color.appTrack))
     }
 }
 
-// MARK: - Labeled text field (matches .field / .input-wrap)
+// MARK: - Text field (Setup / Pension inputs)
 
-struct LabeledField: View {
+struct DesignField: View {
     let label: String
     @Binding var text: String
-    var prefix: String? = nil
-    var suffix: String? = nil
     var placeholder: String = "0"
     var hint: String? = nil
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(label.uppercased())
-                .font(.system(size: 11, weight: .bold))
-                .tracking(0.5)
-                .foregroundColor(Color.appTextSecondary)
-
-            HStack(spacing: 0) {
-                if let prefix = prefix {
-                    Text(prefix)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(Color.appTextSecondary)
-                        .padding(.horizontal, 10)
-                        .frame(height: 36)
-                        .background(Color.appBackgroundMuted)
-                }
-                TextField(placeholder, text: $text)
-                    .keyboardType(.decimalPad)
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundColor(Color.appText)
-                    .padding(.horizontal, 10)
-                    .frame(height: 36)
-                if let suffix = suffix {
-                    Text(suffix)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(Color.appTextSecondary)
-                        .padding(.horizontal, 10)
-                        .frame(height: 36)
-                        .background(Color.appBackgroundMuted)
-                }
-            }
-            .background(Color.appBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 6))
-            .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.appBorderStrong, lineWidth: 1))
-
+        VStack(alignment: .leading, spacing: 6) {
+            Text(label)
+                .font(.mono(11, .regular))
+                .foregroundColor(.appTextSecondary)
+            TextField(placeholder, text: $text)
+                .keyboardType(.decimalPad)
+                .font(.mono(15, .regular))
+                .foregroundColor(.appTextPrimary)
+                .padding(13)
+                .background(Color.appBackground)
+                .cornerRadius(14)
             if let hint = hint {
                 Text(hint)
-                    .font(.system(size: 11))
-                    .foregroundColor(Color.appTextTertiary)
+                    .font(.mono(11, .regular))
+                    .foregroundColor(.appTextFaint)
             }
         }
     }
 }
 
-// MARK: - Stat card (matches .stat-card)
+// MARK: - Progress bar row (Comparison scenarios, Pension projection)
 
-struct StatCard: View {
+struct ProgressBarRow: View {
     let label: String
     let value: String
-    var isPrimary: Bool = false
+    let percent: Double // 0...100
+    var bold: Bool = false
+    var labelSize: CGFloat = 13
+    var barHeight: CGFloat = 8
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(label.uppercased())
-                .font(.system(size: 11, weight: .bold))
-                .tracking(0.5)
-                .foregroundColor(isPrimary ? Color.appPrimaryForeground.opacity(0.6) : Color.appTextSecondary)
-            Text(value)
-                .font(.system(size: 24, weight: .bold))
-                .foregroundColor(isPrimary ? Color.appPrimaryForeground : Color.appText)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .background(isPrimary ? Color.appPrimary : Color.appBackgroundSubtle)
-        .cornerRadius(10)
+    private var clampedPercent: CGFloat {
+        CGFloat(max(2, min(100, percent)))
     }
-}
-
-// MARK: - Section header (matches .section-header)
-
-struct SectionHeader: View {
-    let title: String
-    var trailing: String? = nil
 
     var body: some View {
-        HStack {
-            Text(title.uppercased())
-                .font(.system(size: 11, weight: .bold))
-                .tracking(0.6)
-                .foregroundColor(Color.appTextSecondary)
-            Spacer()
-            if let trailing = trailing {
-                Text(trailing)
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundColor(Color.appTextSecondary)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(label)
+                    .font(.mono(labelSize, bold ? .semibold : .regular))
+                    .foregroundColor(.appTextMuted)
+                Spacer()
+                Text(value)
+                    .font(.mono(labelSize, .bold))
+                    .foregroundColor(.appTextPrimary)
             }
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.appTrack)
+                    Capsule()
+                        .fill(Color.appActiveFill)
+                        .frame(width: geo.size.width * clampedPercent / 100)
+                }
+            }
+            .frame(height: barHeight)
         }
-        .padding(.top, 16)
-        .padding(.bottom, 6)
     }
 }
 
-// MARK: - Data row (label / value line used throughout the Breakdown tab)
+// MARK: - Plain data line (Breakdown cards)
 
-struct DataRow: View {
+struct DataLine: View {
     let label: String
     let value: String
     var tint: Color? = nil
     var bold: Bool = false
-    var highlight: Bool = false
+    var showDivider: Bool = true
 
     var body: some View {
-        HStack(alignment: .top) {
+        HStack {
             Text(label)
-                .font(.system(size: 14, weight: bold ? .bold : .regular))
-                .foregroundColor(Color.appText)
+                .font(.mono(12.5, bold ? .semibold : .regular))
+                .foregroundColor(bold ? .appTextPrimary : .appTextMuted)
             Spacer()
             Text(value)
-                .font(.system(size: 14, weight: bold ? .bold : .regular, design: .monospaced))
-                .foregroundColor(tint ?? Color.appText)
-                .multilineTextAlignment(.trailing)
+                .font(.mono(12.5, bold ? .bold : .regular))
+                .foregroundColor(tint ?? .appTextPrimary)
         }
-        .padding(.vertical, 10)
-        .padding(.horizontal, highlight ? 10 : 0)
-        .background(highlight ? Color.appBackgroundMuted : Color.clear)
-        .cornerRadius(highlight ? 6 : 0)
+        .padding(.vertical, 7)
+        .overlay(
+            Rectangle()
+                .fill(Color.appDivider)
+                .frame(height: 1)
+                .opacity(showDivider ? 1 : 0),
+            alignment: .bottom
+        )
+    }
+}
+
+// MARK: - Small pill badge
+
+struct Pill: View {
+    let text: String
+    var color: Color = .appSuccess
+    var tint: Color = .appSuccessTint
+    var font: Font = .mono(12, .semibold)
+
+    var body: some View {
+        Text(text)
+            .font(font)
+            .foregroundColor(color)
+            .padding(.horizontal, 11)
+            .padding(.vertical, 5)
+            .background(Capsule().fill(tint))
     }
 }
 

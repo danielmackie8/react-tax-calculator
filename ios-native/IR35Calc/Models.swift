@@ -91,9 +91,9 @@ struct ScenarioResult {
 }
 
 func ctLabel(profit: Double, rate: Double) -> String {
-    if profit <= 50_000 { return "Corporation Tax @ \(String(format: "%.1f", rate * 100))%" }
-    if profit >= 250_000 { return "Corporation Tax @ 25%" }
-    return "Corporation Tax (Marginal Relief) @ \(String(format: "%.2f", rate * 100))%"
+    if profit <= 50_000 { return "Corp tax @ \(String(format: "%.1f", rate * 100))%" }
+    if profit >= 250_000 { return "Corp tax @ 25%" }
+    return "Corp tax (marginal relief) @ \(String(format: "%.2f", rate * 100))%"
 }
 
 // MARK: - Enums
@@ -112,14 +112,38 @@ enum IncomeMode: String, CaseIterable, Identifiable {
 }
 
 enum CalcTab: Int, CaseIterable, Identifiable {
-    case comparison, breakdown, pension, optimize
+    case setup, comparison, breakdown, pension, optimize
     var id: Int { rawValue }
+
+    /// Screen title shown in the header (full words).
     var title: String {
         switch self {
+        case .setup: return "Setup"
         case .comparison: return "Comparison"
         case .breakdown: return "Breakdown"
         case .pension: return "Pension"
-        case .optimize: return "Optimise ↗"
+        case .optimize: return "Optimise"
+        }
+    }
+
+    /// Shorter label under the bottom nav icon.
+    var navLabel: String {
+        switch self {
+        case .setup: return "Setup"
+        case .comparison: return "Compare"
+        case .breakdown: return "Breakdown"
+        case .pension: return "Pension"
+        case .optimize: return "Optimise"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .setup: return "gearshape"
+        case .comparison: return "chart.line.uptrend.xyaxis"
+        case .breakdown: return "rectangle.grid.1x2"
+        case .pension: return "clock"
+        case .optimize: return "sparkles"
         }
     }
 }

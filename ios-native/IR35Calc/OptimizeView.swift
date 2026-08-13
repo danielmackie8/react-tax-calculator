@@ -6,25 +6,23 @@ struct OptimizeView: View {
     @Binding var selectedTab: CalcTab
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(
-                title: "Efficiency Opportunities",
-                trailing: "Marginal rate: \(String(format: "%.1f", vm.custom.marginalRate * 100))%"
-            )
-
-            ForEach(vm.strategies) { strategy in
-                StrategyCard(strategy: strategy) {
-                    vm.apply(strategy)
-                    selectedTab = .comparison
-                }
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .lastTextBaseline) {
+                Text("Opportunities")
+                    .font(.fraunces(20))
+                    .foregroundColor(.appTextPrimary)
+                Spacer()
+                Pill(text: "Marginal \(String(format: "%.1f", vm.custom.marginalRate * 100))%")
             }
 
-            Text("How this works: Values are calculated dynamically from your profit band. Savings shown are the total tax avoided (Corp Tax + dividend tax) vs. taking the money as dividends.")
-                .font(.system(size: 13))
-                .foregroundColor(Color.appTextSecondary)
-                .padding(14)
-                .background(Color.appBackgroundSubtle)
-                .cornerRadius(8)
+            VStack(spacing: 12) {
+                ForEach(vm.strategies) { strategy in
+                    StrategyCard(strategy: strategy) {
+                        vm.apply(strategy)
+                        selectedTab = .comparison
+                    }
+                }
+            }
         }
     }
 }
@@ -34,47 +32,42 @@ private struct StrategyCard: View {
     let onApply: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top, spacing: 10) {
-                Text(strategy.icon)
-                    .font(.system(size: 18))
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(strategy.title)
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(Color.appText)
-                    Text(strategy.desc)
-                        .font(.system(size: 13))
-                        .foregroundColor(Color.appTextSecondary)
-                }
-            }
+        Card {
+            VStack(alignment: .leading, spacing: 10) {
+                Text(strategy.title)
+                    .font(.fraunces(15))
+                    .foregroundColor(.appTextPrimary)
+                Text(strategy.desc)
+                    .font(.mono(12.5, .regular))
+                    .foregroundColor(.appTextMuted)
+                    .lineSpacing(3)
 
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(strategy.subtext.uppercased())
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(Color.appTextTertiary)
-                    Text("+\(Fmt.currency(strategy.value))")
-                        .font(.system(size: 17, weight: .bold))
-                        .foregroundColor(Color.appSuccess)
-                }
-                Spacer()
-                if strategy.canApply {
-                    Button(action: onApply) {
-                        Text("Apply →")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(Color.appText)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(Color.appBackgroundMuted)
-                            .cornerRadius(5)
+                HStack(alignment: .center) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(strategy.subtext.uppercased())
+                            .font(.mono(9, .regular))
+                            .tracking(0.7)
+                            .foregroundColor(.appTextFaint)
+                        Text("+\(Fmt.currency(strategy.value))")
+                            .font(.mono(16, .bold))
+                            .foregroundColor(.appSuccess)
                     }
-                    .buttonStyle(.plain)
+                    Spacer()
+                    if strategy.canApply {
+                        Button(action: onApply) {
+                            Text("Apply")
+                                .font(.mono(12, .semibold))
+                                .foregroundColor(.appActiveText)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                                .background(Capsule().fill(Color.appActiveFill))
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
+                .padding(.top, 10)
+                .overlay(Rectangle().fill(Color.appDivider).frame(height: 1), alignment: .top)
             }
         }
-        .padding(16)
-        .background(Color.appBackground)
-        .cornerRadius(8)
-        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appBorderStrong, lineWidth: 1))
     }
 }

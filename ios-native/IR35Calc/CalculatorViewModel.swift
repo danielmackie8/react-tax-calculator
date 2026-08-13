@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import SwiftUI
 
 final class CalculatorViewModel: ObservableObject {
     @Published var incomeMode: IncomeMode = .dayRate
@@ -70,6 +71,13 @@ final class CalculatorViewModel: ObservableObject {
         TaxCalculator.scenario(turnover: currentTurnover, annualPension: currentAnnualPension, yearlyExpenses: Double(yearlyExpenses) ?? 0, taxYear: taxYear)
     }
 
+    var netPositive: Bool { custom.monthlyNet >= 0 }
+    var trendArrow: String { netPositive ? "▲" : "▼" }
+    var trendColor: Color { netPositive ? .appSuccess : .appDanger }
+    var trendTint: Color { netPositive ? .appSuccessTint : .appDangerTint }
+    var taxYearBadge: String { taxYear == .y2025 ? "25" : "26" }
+    var potAt25: Double { projectionData.last?.end ?? 0 }
+
     struct PensionYear: Identifiable {
         let id: Int
         let age: Double
@@ -119,35 +127,35 @@ final class CalculatorViewModel: ObservableObject {
         let evCost = 7200.0
         return [
             Strategy(
-                id: "pension", title: "Optimise for 19% Corp Tax", icon: "📉",
+                id: "pension", title: "Optimise for 19% corp tax", icon: "📉",
                 desc: c.profit <= 50_000
-                    ? "Great — your profit is already at or below £50,000, paying the lowest Corp Tax rate (19%)."
+                    ? "Your profit is already at or below £50,000, paying the lowest Corporation Tax rate (19%)."
                     : "Contribute an extra \(Fmt.currency(excessProfit)) to pension to bring profit to £50k and avoid the 26.5% marginal trap.",
-                value: excessProfit * mr, subtext: "Corp Tax Saved",
+                value: excessProfit * mr, subtext: "Corp tax saved",
                 canApply: c.profit > 50_000, applyValue: excessProfit + c.pension
             ),
             Strategy(
-                id: "ev", title: "Company Electric Car", icon: "🚗",
-                desc: "Lease an EV (~£600/mo). 100% Corp Tax write-off + negligible BiK = significant tax efficiency.",
-                value: evCost * mr + evCost * 0.3375, subtext: "Total Tax Efficiency / yr",
+                id: "ev", title: "Company electric car", icon: "🚗",
+                desc: "Lease an EV (~£600/mo). 100% Corp Tax write-off and negligible BiK make this tax-efficient.",
+                value: evCost * mr + evCost * 0.3375, subtext: "Tax efficiency / yr",
                 canApply: false, applyValue: 0
             ),
             Strategy(
-                id: "trivial", title: "Trivial Benefits", icon: "🎁",
-                desc: "Use your £300 annual director exemption for gift cards. Zero tax, zero NI, zero reporting.",
-                value: 300 * mr + 300 * 0.3375, subtext: "Tax-free Extraction",
+                id: "trivial", title: "Trivial benefits", icon: "🎁",
+                desc: "Use your £300 annual director exemption for gift cards — zero tax, zero NI, zero reporting.",
+                value: 300 * mr + 300 * 0.3375, subtext: "Tax-free extraction",
                 canApply: false, applyValue: 0
             ),
             Strategy(
-                id: "wfh", title: "Formal Home Rent", icon: "🏠",
-                desc: "Switch from £6/wk flat rate (saves \(Fmt.currency(312 * mr))/yr) to a formal rental agreement for greater deduction.",
-                value: 2400 * mr - 312 * mr, subtext: "Extra Corp Tax Saved",
+                id: "wfh", title: "Formal home rent", icon: "🏠",
+                desc: "Switch from the £6/wk flat rate (saves \(Fmt.currency(312 * mr))/yr) to a formal rental agreement.",
+                value: 2400 * mr - 312 * mr, subtext: "Extra corp tax saved",
                 canApply: false, applyValue: 0
             ),
             Strategy(
-                id: "party", title: "Annual Party (+1 Guest)", icon: "🥂",
-                desc: "£150/head HMRC allowance — use it for a Christmas or Summer event for you and a partner.",
-                value: 300 * mr + 300 * 0.3375, subtext: "Tax-free Value",
+                id: "party", title: "Annual party (+1 guest)", icon: "🥂",
+                desc: "£150/head HMRC allowance for a Christmas or summer event.",
+                value: 300 * mr + 300 * 0.3375, subtext: "Tax-free value",
                 canApply: false, applyValue: 0
             ),
         ]
