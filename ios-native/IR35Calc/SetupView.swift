@@ -4,7 +4,7 @@ struct SetupView: View {
     @ObservedObject var vm: CalculatorViewModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 10) {
             HeroStat(
                 kicker: "Net monthly",
                 value: Fmt.currency(vm.custom.monthlyNet),

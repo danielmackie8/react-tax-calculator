@@ -13,7 +13,9 @@ struct ContentView: View {
             TabView(selection: $selectedTab) {
                 ScrollView {
                     SetupView(vm: vm)
-                        .padding(20)
+                        .padding(.horizontal, 20)
+                        .padding(.top, 6)
+                        .padding(.bottom, 20)
                 }
                 .scrollDismissesKeyboard(.interactively)
                 .tag(CalcTab.setup)
@@ -48,10 +50,11 @@ struct ContentView: View {
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-            BottomNav(selection: $selectedTab)
         }
         .background(Color.appBackground.ignoresSafeArea())
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            BottomNav(selection: $selectedTab)
+        }
     }
 
     // The design spec calls for a fixed 58pt top inset baked in for the
@@ -103,11 +106,11 @@ struct BottomNav: View {
         }
         .padding(.horizontal, 10)
         .padding(.top, 8)
-        .padding(.bottom, 12)
+        .padding(.bottom, 8)
         .background(
-            Color.appCard
+            Color.appBackground
                 .overlay(Rectangle().fill(Color.appDivider).frame(height: 1), alignment: .top)
+                .ignoresSafeArea(edges: .bottom)
         )
-        .ignoresSafeArea(edges: .bottom)
     }
 }
