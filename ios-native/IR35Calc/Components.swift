@@ -50,15 +50,15 @@ struct HeroStat: View {
     var bigFontSize: CGFloat = 38
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(kicker.uppercased())
-                .font(.mono(11, .regular))
-                .tracking(1.1)
-                .foregroundColor(.appTextSecondary)
-            HStack(alignment: .lastTextBaseline, spacing: 10) {
-                Text(value)
-                    .font(.mono(bigFontSize, .bold))
-                    .foregroundColor(.appTextPrimary)
+        HStack(alignment: .bottom, spacing: 10) {
+            Text(value)
+                .font(.mono(bigFontSize, .bold))
+                .foregroundColor(.appTextPrimary)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(kicker.uppercased())
+                    .font(.mono(11, .regular))
+                    .tracking(1.1)
+                    .foregroundColor(.appTextSecondary)
                 Pill(text: pillText, color: pillColor, tint: pillTint)
             }
         }

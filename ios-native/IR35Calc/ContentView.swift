@@ -108,7 +108,7 @@ struct BottomNav: View {
         .padding(.top, 8)
         .padding(.bottom, 8)
         .background(
-            Color.appBackground
+            Color.appCard
                 .overlay(Rectangle().fill(Color.appDivider).frame(height: 1), alignment: .top)
                 .ignoresSafeArea(edges: .bottom)
         )
